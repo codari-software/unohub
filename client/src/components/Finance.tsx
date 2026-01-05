@@ -1,0 +1,694 @@
+import { useState, useMemo } from 'react';
+import {
+    CircleDollarSign,
+    TrendingUp,
+    TrendingDown,
+    Calendar,
+    Plus,
+    Repeat,
+    Trash2,
+    CheckCircle2
+} from 'lucide-react';
+import {
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    ResponsiveContainer,
+    AreaChart,
+    Area
+} from 'recharts';
+import { format, isSameMonth, startOfMonth, parseISO, getDate } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { supabase } from '../lib/supabase';
+
+// Types
+type TransactionType = 'income' | 'expense';
+
+interface Transaction {
+    id: string;
+    description: string;
+    amount: number;
+    type: TransactionType;
+    date: string; // ISO string
+    category: string;
+    isRecurring: boolean;
+}
+
+interface RecurringItem {
+    id: string;
+    description: string;
+    amount: number;
+    type: TransactionType;
+    dayOfMonth: number;
+    category: string;
+}
+
+// Initial data is now empty, fetched from DB
+const INITIAL_TRANSACTIONS: Transaction[] = [];
+
+const INITIAL_RECURRING: RecurringItem[] = [
+    { id: '1', description: 'Netflix', amount: 55.90, type: 'expense', dayOfMonth: 10, category: 'Lazer' },
+    { id: '2', description: 'Spotify', amount: 21.90, type: 'expense', dayOfMonth: 5, category: 'Lazer' },
+    { id: '3', description: 'Internet', amount: 120.00, type: 'expense', dayOfMonth: 15, category: 'Contas' },
+];
+
+const INITIAL_CATEGORIES = ['Alimentação', 'Transporte', 'Moradia', 'Lazer', 'Saúde', 'Trabalho', 'Educação', 'Contas', 'Outros'];
+
+const formatCurrencyInput = (value: string) => {
+    const numbers = value.replace(/\D/g, "");
+    if (!numbers) return "";
+    return (Number(numbers) / 100).toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL"
+    });
+};
+
+const parseCurrencyInput = (value: string) => {
+    const numbers = value.replace(/\D/g, "");
+    return Number(numbers) / 100;
+};
+
+const formatDateMask = (value: string) => {
+    const v = value.replace(/\D/g, "").slice(0, 8);
+    if (v.length >= 5) {
+        return `${v.slice(0, 2)}/${v.slice(2, 4)}/${v.slice(4)}`;
+    } else if (v.length >= 3) {
+        return `${v.slice(0, 2)}/${v.slice(2)}`;
+    }
+    return v;
+};
+
+export default function Finance() {
+    const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
+    const [recurringItems, setRecurringItems] = useState<RecurringItem[]>(INITIAL_RECURRING);
+    const [categories, setCategories] = useState<string[]>(INITIAL_CATEGORIES);
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [showRecurringModal, setShowRecurringModal] = useState(false);
+
+    const [currentDate] = useState(new Date());
+    const [loading, setLoading] = useState(true);
+
+    const [processedMonths, setProcessedMonths] = useState<string[]>([]);
+
+    useEffect(() => {
+        fetchTransactions();
+    }, []);
+
+    const fetchTransactions = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('transactions')
+                .select('*')
+                .order('date', { ascending: false });
+
+            if (error) throw error;
+            if (data) {
+                const mappedData: Transaction[] = data.map((t: any) => ({
+                    id: t.id,
+                    description: t.description,
+                    amount: t.amount,
+                    type: t.type,
+                    date: t.date,
+                    category: t.category,
+                    isRecurring: t.is_recurring
+                }));
+                setTransactions(mappedData);
+            }
+        } catch (error) {
+            console.error('Error fetching transactions:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const currentMonthKey = useMemo(() => format(currentDate, 'yyyy-MM'), [currentDate]);
+    const isCurrentMonthProcessed = processedMonths.includes(currentMonthKey);
+
+    // Filter transactions for current month
+    const currentMonthTransactions = useMemo(() => {
+        return transactions.filter(t => isSameMonth(parseISO(t.date), currentDate));
+    }, [transactions, currentDate]);
+
+    // Calculate totals
+    const totals = useMemo(() => {
+        return currentMonthTransactions.reduce((acc, t) => {
+            if (t.type === 'income') acc.income += t.amount;
+            else acc.expense += t.amount;
+            return acc;
+        }, { income: 0, expense: 0 });
+    }, [currentMonthTransactions]);
+
+    const balance = totals.income - totals.expense;
+
+    // Charts Data
+    const chartData = useMemo(() => {
+        const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+        const data = Array.from({ length: daysInMonth }, (_, i) => ({
+            day: i + 1,
+            income: 0,
+            expense: 0
+        }));
+
+        currentMonthTransactions.forEach(t => {
+            const day = getDate(parseISO(t.date));
+            if (day >= 1 && day <= daysInMonth) {
+                if (t.type === 'income') data[day - 1].income += t.amount;
+                else data[day - 1].expense += t.amount;
+            }
+        });
+
+        return data;
+    }, [currentMonthTransactions, currentDate]);
+
+    const handleAddTransaction = async (newTx: Omit<Transaction, 'id'>) => {
+        try {
+            const { data, error } = await supabase
+                .from('transactions')
+                .insert([{
+                    description: newTx.description,
+                    amount: newTx.amount,
+                    type: newTx.type,
+                    date: newTx.date,
+                    category: newTx.category,
+                    is_recurring: newTx.isRecurring
+                }])
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            if (data) {
+                // Adapt database columns (snake_case) to frontend model (camelCase) if needed, 
+                // or ensure Supabase returns what we expect. 
+                // Note: The SQL I provided uses snake_case (is_recurring), so we map it.
+                const tx: Transaction = {
+                    ...newTx,
+                    id: data.id,
+                };
+                setTransactions(prev => [tx, ...prev]);
+                setShowAddModal(false);
+            }
+        } catch (error) {
+            console.error('Error adding transaction:', error);
+            alert('Erro ao salvar transação');
+        }
+    };
+
+    const handleAddRecurring = (items: RecurringItem[]) => {
+        setRecurringItems(prev => [...prev, ...items]);
+        setShowRecurringModal(false);
+    };
+
+    const handleAddCategory = (newCategory: string) => {
+        if (!categories.includes(newCategory) && newCategory.trim() !== '') {
+            setCategories(prev => [...prev, newCategory].sort());
+        }
+    };
+
+    const processRecurringToCurrentMonth = async (items: RecurringItem[]) => {
+        if (isCurrentMonthProcessed) return;
+
+        const transactionsToInsert = items.map(item => ({
+            description: item.description,
+            amount: item.amount,
+            type: item.type,
+            date: new Date(currentDate.getFullYear(), currentDate.getMonth(), item.dayOfMonth).toISOString(),
+            category: item.category,
+            is_recurring: true
+        }));
+
+        try {
+            const { data, error } = await supabase
+                .from('transactions')
+                .insert(transactionsToInsert)
+                .select();
+
+            if (error) throw error;
+
+            if (data) {
+                const newTransactions: Transaction[] = data.map((t: any) => ({
+                    id: t.id,
+                    description: t.description,
+                    amount: t.amount,
+                    type: t.type,
+                    date: t.date,
+                    category: t.category,
+                    isRecurring: t.is_recurring
+                }));
+                setTransactions(prev => [...newTransactions, ...prev]);
+                setProcessedMonths(prev => [...prev, currentMonthKey]);
+            }
+        } catch (error) {
+            console.error('Error processing recurring:', error);
+            alert('Erro ao processar recorrentes');
+        }
+    };
+
+    return (
+        <div className="h-full flex flex-col gap-6 animate-fade-in pb-8">
+            {/* Header / Summary */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <SummaryCard
+                    title="Entradas"
+                    value={totals.income}
+                    icon={TrendingUp}
+                    color="text-emerald-400"
+                    bgColor="bg-emerald-400/10"
+                />
+                <SummaryCard
+                    title="Saídas"
+                    value={totals.expense}
+                    icon={TrendingDown}
+                    color="text-rose-400"
+                    bgColor="bg-rose-400/10"
+                />
+                <SummaryCard
+                    title="Saldo"
+                    value={balance}
+                    icon={CircleDollarSign}
+                    color={balance >= 0 ? "text-indigo-400" : "text-rose-400"}
+                    bgColor={balance >= 0 ? "bg-indigo-400/10" : "bg-rose-400/10"}
+                />
+            </div>
+
+            {/* Actions & Charts */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-[400px]">
+                {/* Chart Area */}
+                <div className="lg:col-span-2 bg-[#1e232d]/70 border border-white/5 rounded-2xl p-6 backdrop-blur-xl flex flex-col">
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-lg font-semibold text-white">Fluxo de Caixa - {format(currentDate, 'MMMM', { locale: ptBR })}</h3>
+                        <div className="flex gap-2">
+                            <div className="flex items-center gap-2 text-sm text-slate-400">
+                                <div className="w-3 h-3 rounded-full bg-emerald-400"></div> Entradas
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-slate-400">
+                                <div className="w-3 h-3 rounded-full bg-rose-400"></div> Saídas
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex-1 w-full min-h-[300px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={chartData}>
+                                <defs>
+                                    <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#34d399" stopOpacity={0.3} />
+                                        <stop offset="95%" stopColor="#34d399" stopOpacity={0} />
+                                    </linearGradient>
+                                    <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#fb7185" stopOpacity={0.3} />
+                                        <stop offset="95%" stopColor="#fb7185" stopOpacity={0} />
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                                <XAxis dataKey="day" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                                <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `R$${value}`} />
+                                <Tooltip
+                                    contentStyle={{ backgroundColor: '#1e232d', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
+                                    itemStyle={{ color: '#fff' }}
+                                />
+                                <Area type="monotone" dataKey="income" stroke="#34d399" fillOpacity={1} fill="url(#colorIncome)" />
+                                <Area type="monotone" dataKey="expense" stroke="#fb7185" fillOpacity={1} fill="url(#colorExpense)" />
+                            </AreaChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* Actions & Recurring */}
+                <div className="flex flex-col gap-6">
+                    <div className="bg-[#1e232d]/70 border border-white/5 rounded-2xl p-6 backdrop-blur-xl">
+                        <h3 className="text-lg font-semibold text-white mb-4">Ações Rápidas</h3>
+                        <div className="flex flex-col gap-3">
+                            <button
+                                onClick={() => setShowAddModal(true)}
+                                className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white p-3 rounded-xl font-semibold transition-all w-full"
+                            >
+                                <Plus size={20} /> Nova Transação
+                            </button>
+                            <button
+                                onClick={() => setShowRecurringModal(true)}
+                                className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-white p-3 rounded-xl font-semibold transition-all w-full border border-white/10"
+                            >
+                                <Repeat size={20} /> Gerenciar Recorrências
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="bg-[#1e232d]/70 border border-white/5 rounded-2xl p-6 backdrop-blur-xl flex-1 overflow-auto">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-semibold text-white">Recorrentes</h3>
+                            {isCurrentMonthProcessed ? (
+                                <span className="flex items-center gap-1 text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded border border-emerald-500/20">
+                                    <CheckCircle2 size={12} />
+                                    Processado
+                                </span>
+                            ) : (
+                                <button
+                                    onClick={() => processRecurringToCurrentMonth(recurringItems)}
+                                    className="text-xs bg-indigo-500/20 text-indigo-300 px-2 py-1 rounded hover:bg-indigo-500/30 transition-colors"
+                                    title="Adicionar todas ao mês atual"
+                                >
+                                    Processar Mês
+                                </button>
+                            )}
+                        </div>
+                        <div className="space-y-3">
+                            {recurringItems.map(item => (
+                                <div key={item.id} className="flex justify-between items-center p-3 rounded-lg bg-white/5 border border-white/5 hover:border-white/10 transition-colors group">
+                                    <div className="flex flex-col">
+                                        <span className="font-medium text-white">{item.description}</span>
+                                        <span className="text-xs text-slate-400">Dia {item.dayOfMonth} • {item.category}</span>
+                                    </div>
+                                    <span className={`font-bold ${item.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                        R$ {item.amount.toFixed(2)}
+                                    </span>
+                                </div>
+                            ))}
+                            {recurringItems.length === 0 && (
+                                <p className="text-slate-500 text-sm text-center py-4">Nenhuma conta recorrente configurada.</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Modals */}
+            {showAddModal && (
+                <TransactionModal
+                    onClose={() => setShowAddModal(false)}
+                    onSave={handleAddTransaction}
+                    categories={categories}
+                    onAddCategory={handleAddCategory}
+                />
+            )}
+
+            {showRecurringModal && (
+                <RecurringModal
+                    onClose={() => setShowRecurringModal(false)}
+                    items={recurringItems}
+                    onSave={handleAddRecurring}
+                    onDelete={(id) => setRecurringItems(prev => prev.filter(i => i.id !== id))}
+                />
+            )}
+        </div>
+    );
+}
+
+function SummaryCard({ title, value, icon: Icon, color, bgColor }: any) {
+    return (
+        <div className="bg-[#1e232d]/70 border border-white/5 rounded-2xl p-6 backdrop-blur-xl flex items-center gap-4">
+            <div className={`p-4 rounded-xl ${bgColor} ${color}`}>
+                <Icon size={28} />
+            </div>
+            <div>
+                <p className="text-slate-400 font-medium">{title}</p>
+                <h3 className="text-2xl font-bold text-white mt-1">
+                    R$ {value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </h3>
+            </div>
+        </div>
+    );
+}
+
+import { useEffect } from 'react';
+
+function TransactionModal({ onClose, onSave, categories = [], onAddCategory }: any) {
+    const [formData, setFormData] = useState({
+        description: '',
+        amount: '',
+        type: 'expense',
+        date: format(new Date(), 'dd/MM/yyyy'),
+        category: categories[0] || 'Geral'
+    });
+
+    const [isAddingCategory, setIsAddingCategory] = useState(false);
+    const [newCategoryTemp, setNewCategoryTemp] = useState('');
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') onClose();
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [onClose]);
+
+    const handleSubmit = (e: any) => {
+        e.preventDefault();
+
+        // Convert DD/MM/YYYY to ISO
+        const [day, month, year] = formData.date.split('/');
+        const isoDate = `${year}-${month}-${day}`; // Simple conversion
+
+        onSave({
+            ...formData,
+            amount: parseCurrencyInput(formData.amount),
+            isRecurring: false,
+            date: new Date(isoDate).toISOString()
+        });
+    };
+
+    const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        setFormData({ ...formData, amount: formatCurrencyInput(value) });
+    };
+
+    const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFormData({ ...formData, date: formatDateMask(e.target.value) });
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-sm">
+            <div className="flex items-center justify-center p-4 text-center" onClick={onClose}>
+                <div
+                    className="relative w-full max-w-md transform overflow-hidden rounded-2xl bg-[#1e232d] border border-white/10 p-6 text-left align-middle shadow-xl transition-all"
+                    onClick={e => e.stopPropagation()}
+                >
+                    <h3 className="text-xl font-bold text-white mb-6">Nova Transação</h3>
+                    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                        <input
+                            type="text"
+                            placeholder="Descrição"
+                            className="bg-black/20 border border-white/10 rounded-lg p-3 text-white focus:border-indigo-500 outline-none"
+                            value={formData.description}
+                            onChange={e => setFormData({ ...formData, description: e.target.value })}
+                            required
+                        />
+                        <input
+                            type="text"
+                            placeholder="Valor (R$ 0,00)"
+                            className="bg-black/20 border border-white/10 rounded-lg p-3 text-white focus:border-indigo-500 outline-none"
+                            value={formData.amount}
+                            onChange={handleAmountChange}
+                            required
+                        />
+                        <div className="flex gap-2">
+                            <button
+                                type="button"
+                                className={`flex-1 p-3 rounded-lg font-medium transition-colors ${formData.type === 'income' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'bg-black/20 text-slate-400 border border-transparent'}`}
+                                onClick={() => setFormData({ ...formData, type: 'income' })}
+                            >
+                                Entrada
+                            </button>
+                            <button
+                                type="button"
+                                className={`flex-1 p-3 rounded-lg font-medium transition-colors ${formData.type === 'expense' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/50' : 'bg-black/20 text-slate-400 border border-transparent'}`}
+                                onClick={() => setFormData({ ...formData, type: 'expense' })}
+                            >
+                                Saída
+                            </button>
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="Data (DD/MM/AAAA)"
+                            maxLength={10}
+                            className="bg-black/20 border border-white/10 rounded-lg p-3 text-white focus:border-indigo-500 outline-none"
+                            value={formData.date}
+                            onChange={handleDateChange}
+                            required
+                        />
+                        <div className="flex gap-2">
+                            {isAddingCategory ? (
+                                <div className="flex flex-1 gap-2 animate-fade-in">
+                                    <input
+                                        type="text"
+                                        placeholder="Nova categoria..."
+                                        className="flex-1 bg-black/20 border border-white/10 rounded-lg p-3 text-white focus:border-indigo-500 outline-none"
+                                        value={newCategoryTemp}
+                                        onChange={e => setNewCategoryTemp(e.target.value)}
+                                        autoFocus
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (newCategoryTemp.trim()) {
+                                                onAddCategory(newCategoryTemp);
+                                                setFormData({ ...formData, category: newCategoryTemp });
+                                                setIsAddingCategory(false);
+                                                setNewCategoryTemp('');
+                                            }
+                                        }}
+                                        className="bg-emerald-500/20 text-emerald-400 p-3 rounded-lg hover:bg-emerald-500/30 transition-colors"
+                                    >
+                                        <CheckCircle2 size={20} />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsAddingCategory(false)}
+                                        className="bg-rose-500/20 text-rose-400 p-3 rounded-lg hover:bg-rose-500/30 transition-colors"
+                                    >
+                                        <Plus size={20} className="rotate-45" />
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="flex flex-1 gap-2">
+                                    <select
+                                        className="flex-1 bg-black/20 border border-white/10 rounded-lg p-3 text-white focus:border-indigo-500 outline-none appearance-none cursor-pointer"
+                                        value={formData.category}
+                                        onChange={e => setFormData({ ...formData, category: e.target.value })}
+                                    >
+                                        {categories.map((c: string) => (
+                                            <option key={c} value={c} className="bg-[#1e232d]">{c}</option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        type="button"
+                                        onClick={() => { setIsAddingCategory(true); setNewCategoryTemp(''); }}
+                                        className="bg-indigo-600 hover:bg-indigo-500 text-white p-3 rounded-lg transition-colors"
+                                        title="Adicionar nova categoria"
+                                    >
+                                        <Plus size={20} />
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex gap-3 mt-4">
+                            <button type="button" onClick={onClose} className="flex-1 p-3 rounded-lg text-slate-400 hover:bg-white/5 transition-colors">Cancelar</button>
+                            <button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white p-3 rounded-lg font-semibold shadow-lg shadow-indigo-500/20">Salvar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function RecurringModal({ onClose, items, onSave, onDelete }: any) {
+    const [newItems, setNewItems] = useState<any[]>([]);
+
+    // Quick form state
+    const [desc, setDesc] = useState('');
+    const [amount, setAmount] = useState('');
+    const [day, setDay] = useState('');
+    const [type, setType] = useState('expense');
+
+    const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setAmount(formatCurrencyInput(e.target.value));
+    };
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') onClose();
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [onClose]);
+
+    const handleAddItem = () => {
+        if (!desc || !amount || !day) return;
+        setNewItems(prev => [...prev, {
+            id: Math.random().toString(),
+            description: desc,
+            amount: parseCurrencyInput(amount),
+            type,
+            dayOfMonth: Number(day),
+            category: 'Recorrente'
+        }]);
+        setDesc('');
+        setAmount('');
+        setDay('');
+    };
+
+    const handleSaveAll = () => {
+        onSave(newItems);
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-sm">
+            <div className="flex items-center justify-center p-4 text-center" onClick={onClose}>
+                <div
+                    className="relative w-full max-w-2xl transform overflow-hidden rounded-2xl bg-[#1e232d] border border-white/10 p-6 text-left align-middle shadow-xl transition-all"
+                    onClick={e => e.stopPropagation()}
+                >
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-xl font-bold text-white">Gerenciar Recorrências</h3>
+                        <button onClick={onClose} className="text-slate-400 hover:text-white">✕</button>
+                    </div>
+
+                    <div className="flex-1 overflow-auto pr-2">
+                        {/* Add New Section */}
+                        <div className="bg-white/5 rounded-xl p-4 mb-6 border border-white/5">
+                            <h4 className="text-sm font-semibold text-slate-300 mb-3">Adicionar Nova Recorrência (Bulk)</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
+                                <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Nome (ex: Netflix)" className="bg-black/20 border border-white/10 rounded-lg p-2 text-sm text-white md:col-span-2" />
+                                <input value={amount} onChange={handleAmountChange} placeholder="Valor" type="text" className="bg-black/20 border border-white/10 rounded-lg p-2 text-sm text-white" />
+                                <input value={day} onChange={e => setDay(e.target.value)} placeholder="Dia (1-31)" type="number" className="bg-black/20 border border-white/10 rounded-lg p-2 text-sm text-white" />
+                            </div>
+                            <div className="flex gap-3">
+                                <select value={type} onChange={e => setType(e.target.value)} className="bg-black/20 border border-white/10 rounded-lg p-2 text-sm text-white flex-1">
+                                    <option value="expense">Saída</option>
+                                    <option value="income">Entrada</option>
+                                </select>
+                                <button onClick={handleAddItem} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+                                    + Adicionar à Lista
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Staged Items */}
+                        {newItems.length > 0 && (
+                            <div className="mb-6">
+                                <h4 className="text-sm font-semibold text-emerald-400 mb-2">Novos Itens para Salvar:</h4>
+                                <div className="space-y-2">
+                                    {newItems.map((item, idx) => (
+                                        <div key={idx} className="flex justify-between items-center p-2 rounded bg-emerald-500/10 border border-emerald-500/20">
+                                            <span className="text-white text-sm">{item.description} - R$ {item.amount} (Dia {item.dayOfMonth})</span>
+                                            <button onClick={() => setNewItems(prev => prev.filter((_, i) => i !== idx))} className="text-rose-400 hover:text-rose-300">
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                                <button onClick={handleSaveAll} className="w-full mt-3 bg-emerald-600 hover:bg-emerald-500 text-white p-3 rounded-lg font-bold shadow-lg shadow-emerald-500/20">
+                                    Salvar {newItems.length} Itens
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Existing Items */}
+                        <div>
+                            <h4 className="text-sm font-semibold text-slate-400 mb-3">Recorrências Ativas:</h4>
+                            <div className="space-y-2">
+                                {items.map((item: any) => (
+                                    <div key={item.id} className="flex justify-between items-center p-3 rounded-lg bg-black/20 border border-white/5">
+                                        <div className="flex flex-col">
+                                            <span className="font-medium text-white">{item.description}</span>
+                                            <span className="text-xs text-slate-400">{item.type === 'income' ? 'Entrada' : 'Saída'} • Dia {item.dayOfMonth}</span>
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <span className="text-white">R$ {item.amount}</span>
+                                            <button onClick={() => onDelete(item.id)} className="text-rose-400 hover:text-rose-300 opacity-50 hover:opacity-100">
+                                                <Trash2 size={18} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
