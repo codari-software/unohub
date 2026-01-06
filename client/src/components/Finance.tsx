@@ -7,7 +7,8 @@ import {
     Plus,
     Repeat,
     Trash2,
-    CheckCircle2
+    CheckCircle2,
+    History
 } from 'lucide-react';
 import {
     BarChart,
@@ -49,11 +50,8 @@ interface RecurringItem {
 // Initial data is now empty, fetched from DB
 const INITIAL_TRANSACTIONS: Transaction[] = [];
 
-const INITIAL_RECURRING: RecurringItem[] = [
-    { id: '1', description: 'Netflix', amount: 55.90, type: 'expense', dayOfMonth: 10, category: 'Lazer' },
-    { id: '2', description: 'Spotify', amount: 21.90, type: 'expense', dayOfMonth: 5, category: 'Lazer' },
-    { id: '3', description: 'Internet', amount: 120.00, type: 'expense', dayOfMonth: 15, category: 'Contas' },
-];
+// Initial data is now empty, fetched from DB
+const INITIAL_RECURRING: RecurringItem[] = [];
 
 const INITIAL_CATEGORIES = ['Alimentação', 'Transporte', 'Moradia', 'Lazer', 'Saúde', 'Trabalho', 'Educação', 'Contas', 'Outros'];
 
@@ -94,7 +92,7 @@ export default function Finance() {
     const [processedMonths, setProcessedMonths] = useState<string[]>([]);
 
     useEffect(() => {
-        fetchTransactions();
+        Promise.all([fetchTransactions(), fetchRecurringItems(), fetchProcessedMonths()]);
     }, []);
 
     const fetchTransactions = async () => {
@@ -124,6 +122,45 @@ export default function Finance() {
         }
     };
 
+    const fetchRecurringItems = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('recurring_items')
+                .select('*')
+                .order('day_of_month', { ascending: true });
+
+            if (error) throw error;
+            if (data) {
+                const mappedData: RecurringItem[] = data.map((t: any) => ({
+                    id: t.id,
+                    description: t.description,
+                    amount: t.amount,
+                    type: t.type,
+                    dayOfMonth: t.day_of_month,
+                    category: t.category
+                }));
+                setRecurringItems(mappedData);
+            }
+        } catch (error) {
+            console.error('Error fetching recurring items:', error);
+        }
+    };
+
+    const fetchProcessedMonths = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('processed_months')
+                .select('month_key');
+
+            if (error) throw error;
+            if (data) {
+                setProcessedMonths(data.map((item: any) => item.month_key));
+            }
+        } catch (error) {
+            console.error('Error fetching processed months:', error);
+        }
+    };
+
     const currentMonthKey = useMemo(() => format(currentDate, 'yyyy-MM'), [currentDate]);
     const isCurrentMonthProcessed = processedMonths.includes(currentMonthKey);
 
@@ -142,6 +179,16 @@ export default function Finance() {
     }, [currentMonthTransactions]);
 
     const balance = totals.income - totals.expense;
+
+    // Previous Balance (Accumulated before current month)
+    const previousBalance = useMemo(() => {
+        const startOfCurrent = startOfMonth(currentDate);
+        return transactions
+            .filter(t => parseISO(t.date) < startOfCurrent)
+            .reduce((acc, t) => {
+                return acc + (t.type === 'income' ? t.amount : -t.amount);
+            }, 0);
+    }, [transactions, currentDate]);
 
     // Charts Data
     const chartData = useMemo(() => {
@@ -197,9 +244,73 @@ export default function Finance() {
         }
     };
 
-    const handleAddRecurring = (items: RecurringItem[]) => {
-        setRecurringItems(prev => [...prev, ...items]);
-        setShowRecurringModal(false);
+    const handleDeleteTransaction = async (id: string) => {
+        if (!confirm('Tem certeza que deseja apagar esta transação?')) return;
+
+        try {
+            const { error } = await supabase
+                .from('transactions')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+
+            setTransactions(prev => prev.filter(t => t.id !== id));
+        } catch (error) {
+            console.error('Error deleting transaction:', error);
+            alert('Erro ao apagar transação');
+        }
+    };
+
+    const handleAddRecurring = async (items: RecurringItem[]) => {
+        const itemsToInsert = items.map(item => ({
+            description: item.description,
+            amount: item.amount,
+            type: item.type,
+            day_of_month: item.dayOfMonth,
+            category: item.category
+        }));
+
+        try {
+            const { data, error } = await supabase
+                .from('recurring_items')
+                .insert(itemsToInsert)
+                .select();
+
+            if (error) throw error;
+
+            if (data) {
+                const newItems: RecurringItem[] = data.map((t: any) => ({
+                    id: t.id,
+                    description: t.description,
+                    amount: t.amount,
+                    type: t.type,
+                    dayOfMonth: t.day_of_month,
+                    category: t.category
+                }));
+                setRecurringItems(prev => [...prev, ...newItems]);
+                setShowRecurringModal(false);
+            }
+        } catch (error) {
+            console.error('Error adding recurring:', error);
+            alert('Erro ao salvar recorrência');
+        }
+    };
+
+    const handleDeleteRecurring = async (id: string) => {
+        try {
+            const { error } = await supabase
+                .from('recurring_items')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+
+            setRecurringItems(prev => prev.filter(i => i.id !== id));
+        } catch (error) {
+            console.error('Error deleting recurring:', error);
+            alert('Erro ao deletar recorrência');
+        }
     };
 
     const handleAddCategory = (newCategory: string) => {
@@ -239,6 +350,14 @@ export default function Finance() {
                     isRecurring: t.is_recurring
                 }));
                 setTransactions(prev => [...newTransactions, ...prev]);
+
+                // Mark month as processed in DB
+                const { error: processedError } = await supabase
+                    .from('processed_months')
+                    .insert([{ month_key: currentMonthKey }]);
+
+                if (processedError) throw processedError;
+
                 setProcessedMonths(prev => [...prev, currentMonthKey]);
             }
         } catch (error) {
@@ -247,10 +366,82 @@ export default function Finance() {
         }
     };
 
+    if (loading) {
+        return (
+            <div className="h-full flex flex-col gap-6 pb-8">
+                {/* Header / Summary Skeleton */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {[1, 2, 3].map((i) => (
+                        <div key={i} className="bg-[#1e232d]/70 border border-white/5 rounded-2xl p-6 backdrop-blur-xl flex items-center gap-4 animate-pulse">
+                            <div className="w-12 h-12 rounded-xl bg-white/5"></div>
+                            <div className="flex-1">
+                                <div className="h-4 w-20 bg-white/5 rounded mb-2"></div>
+                                <div className="h-8 w-32 bg-white/5 rounded"></div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Actions & Charts Skeleton */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-[400px]">
+                    <div className="lg:col-span-2 flex flex-col gap-6">
+                        <div className="bg-[#1e232d]/70 border border-white/5 rounded-2xl p-6 backdrop-blur-xl flex flex-col animate-pulse min-h-[350px]">
+                            <div className="flex justify-between items-center mb-6">
+                                <div className="h-6 w-48 bg-white/5 rounded"></div>
+                                <div className="flex gap-2">
+                                    <div className="h-4 w-20 bg-white/5 rounded"></div>
+                                    <div className="h-4 w-20 bg-white/5 rounded"></div>
+                                </div>
+                            </div>
+                            <div className="flex-1 w-full bg-white/5 rounded-xl"></div>
+                        </div>
+
+                        <div className="bg-[#1e232d]/70 border border-white/5 rounded-2xl p-6 backdrop-blur-xl flex-1 animate-pulse">
+                            <div className="h-6 w-48 bg-white/5 rounded mb-4"></div>
+                            <div className="space-y-3">
+                                {[1, 2, 3].map((i) => (
+                                    <div key={i} className="h-16 w-full bg-white/5 rounded-lg"></div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col gap-6">
+                        <div className="bg-[#1e232d]/70 border border-white/5 rounded-2xl p-6 backdrop-blur-xl animate-pulse">
+                            <div className="h-6 w-32 bg-white/5 rounded mb-4"></div>
+                            <div className="flex flex-col gap-3">
+                                <div className="h-12 w-full bg-white/5 rounded-xl"></div>
+                                <div className="h-12 w-full bg-white/5 rounded-xl"></div>
+                            </div>
+                        </div>
+
+                        <div className="bg-[#1e232d]/70 border border-white/5 rounded-2xl p-6 backdrop-blur-xl flex-1 animate-pulse">
+                            <div className="flex justify-between items-center mb-4">
+                                <div className="h-6 w-32 bg-white/5 rounded"></div>
+                            </div>
+                            <div className="space-y-3">
+                                {[1, 2, 3].map((i) => (
+                                    <div key={i} className="h-16 w-full bg-white/5 rounded-lg"></div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="h-full flex flex-col gap-6 animate-fade-in pb-8">
             {/* Header / Summary */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <SummaryCard
+                    title="Saldo Anterior"
+                    value={previousBalance}
+                    icon={History}
+                    color="text-slate-400"
+                    bgColor="bg-slate-400/10"
+                />
                 <SummaryCard
                     title="Entradas"
                     value={totals.income}
@@ -266,7 +457,7 @@ export default function Finance() {
                     bgColor="bg-rose-400/10"
                 />
                 <SummaryCard
-                    title="Saldo"
+                    title="Saldo Mês"
                     value={balance}
                     icon={CircleDollarSign}
                     color={balance >= 0 ? "text-indigo-400" : "text-rose-400"}
@@ -276,43 +467,84 @@ export default function Finance() {
 
             {/* Actions & Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-[400px]">
-                {/* Chart Area */}
-                <div className="lg:col-span-2 bg-[#1e232d]/70 border border-white/5 rounded-2xl p-6 backdrop-blur-xl flex flex-col">
-                    <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-lg font-semibold text-white">Fluxo de Caixa - {format(currentDate, 'MMMM', { locale: ptBR })}</h3>
-                        <div className="flex gap-2">
-                            <div className="flex items-center gap-2 text-sm text-slate-400">
-                                <div className="w-3 h-3 rounded-full bg-emerald-400"></div> Entradas
-                            </div>
-                            <div className="flex items-center gap-2 text-sm text-slate-400">
-                                <div className="w-3 h-3 rounded-full bg-rose-400"></div> Saídas
+                {/* Left Column: Chart & History */}
+                <div className="lg:col-span-2 flex flex-col gap-6">
+                    {/* Chart Area */}
+                    <div className="bg-[#1e232d]/70 border border-white/5 rounded-2xl p-6 backdrop-blur-xl flex flex-col h-[400px]">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-lg font-semibold text-white">Fluxo de Caixa - {format(currentDate, 'MMMM', { locale: ptBR })}</h3>
+                            <div className="flex gap-2">
+                                <div className="flex items-center gap-2 text-sm text-slate-400">
+                                    <div className="w-3 h-3 rounded-full bg-emerald-400"></div> Entradas
+                                </div>
+                                <div className="flex items-center gap-2 text-sm text-slate-400">
+                                    <div className="w-3 h-3 rounded-full bg-rose-400"></div> Saídas
+                                </div>
                             </div>
                         </div>
+                        <div className="flex-1 w-full min-h-0">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={chartData}>
+                                    <defs>
+                                        <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#34d399" stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor="#34d399" stopOpacity={0} />
+                                        </linearGradient>
+                                        <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#fb7185" stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor="#fb7185" stopOpacity={0} />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                                    <XAxis dataKey="day" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                                    <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `R$${value}`} />
+                                    <Tooltip
+                                        contentStyle={{ backgroundColor: '#1e232d', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
+                                        itemStyle={{ color: '#fff' }}
+                                    />
+                                    <Area type="monotone" dataKey="income" stroke="#34d399" fillOpacity={1} fill="url(#colorIncome)" />
+                                    <Area type="monotone" dataKey="expense" stroke="#fb7185" fillOpacity={1} fill="url(#colorExpense)" />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </div>
                     </div>
-                    <div className="flex-1 w-full min-h-[300px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={chartData}>
-                                <defs>
-                                    <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#34d399" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="#34d399" stopOpacity={0} />
-                                    </linearGradient>
-                                    <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#fb7185" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="#fb7185" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                                <XAxis dataKey="day" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                                <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `R$${value}`} />
-                                <Tooltip
-                                    contentStyle={{ backgroundColor: '#1e232d', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
-                                    itemStyle={{ color: '#fff' }}
-                                />
-                                <Area type="monotone" dataKey="income" stroke="#34d399" fillOpacity={1} fill="url(#colorIncome)" />
-                                <Area type="monotone" dataKey="expense" stroke="#fb7185" fillOpacity={1} fill="url(#colorExpense)" />
-                            </AreaChart>
-                        </ResponsiveContainer>
+
+                    {/* Transaction History */}
+                    <div className="bg-[#1e232d]/70 border border-white/5 rounded-2xl p-6 backdrop-blur-xl flex-1">
+                        <h3 className="text-lg font-semibold text-white mb-4">Histórico de Transações</h3>
+                        <div className="space-y-3">
+                            {currentMonthTransactions.length > 0 ? (
+                                currentMonthTransactions.map((t) => (
+                                    <div key={t.id} className="flex justify-between items-center p-4 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 transition-colors group">
+                                        <div className="flex items-center gap-4">
+                                            <div className={`p-3 rounded-full ${t.type === 'income' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+                                                {t.type === 'income' ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
+                                            </div>
+                                            <div>
+                                                <p className="font-semibold text-white">{t.description}</p>
+                                                <p className="text-sm text-slate-400 capitalize">
+                                                    {format(parseISO(t.date), 'dd/MM')} • {t.category}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <span className={`font-bold ${t.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                                {t.type === 'income' ? '+' : '-'} R$ {t.amount.toFixed(2)}
+                                            </span>
+                                            <button
+                                                onClick={() => handleDeleteTransaction(t.id)}
+                                                className="text-slate-500 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-all p-2"
+                                                title="Apagar transação"
+                                            >
+                                                <Trash2 size={18} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <p className="text-center text-slate-500 py-8">Nenhuma transação neste mês.</p>
+                            )}
+                        </div>
                     </div>
                 </div>
 
@@ -339,19 +571,21 @@ export default function Finance() {
                     <div className="bg-[#1e232d]/70 border border-white/5 rounded-2xl p-6 backdrop-blur-xl flex-1 overflow-auto">
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-lg font-semibold text-white">Recorrentes</h3>
-                            {isCurrentMonthProcessed ? (
-                                <span className="flex items-center gap-1 text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded border border-emerald-500/20">
-                                    <CheckCircle2 size={12} />
-                                    Processado
-                                </span>
-                            ) : (
-                                <button
-                                    onClick={() => processRecurringToCurrentMonth(recurringItems)}
-                                    className="text-xs bg-indigo-500/20 text-indigo-300 px-2 py-1 rounded hover:bg-indigo-500/30 transition-colors"
-                                    title="Adicionar todas ao mês atual"
-                                >
-                                    Processar Mês
-                                </button>
+                            {recurringItems.length > 0 && (
+                                isCurrentMonthProcessed ? (
+                                    <span className="flex items-center gap-1 text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded border border-emerald-500/20">
+                                        <CheckCircle2 size={12} />
+                                        Processado
+                                    </span>
+                                ) : (
+                                    <button
+                                        onClick={() => processRecurringToCurrentMonth(recurringItems)}
+                                        className="text-xs bg-indigo-500/20 text-indigo-300 px-2 py-1 rounded hover:bg-indigo-500/30 transition-colors"
+                                        title="Adicionar todas ao mês atual"
+                                    >
+                                        Processar Mês
+                                    </button>
+                                )
                             )}
                         </div>
                         <div className="space-y-3">
@@ -389,7 +623,7 @@ export default function Finance() {
                     onClose={() => setShowRecurringModal(false)}
                     items={recurringItems}
                     onSave={handleAddRecurring}
-                    onDelete={(id) => setRecurringItems(prev => prev.filter(i => i.id !== id))}
+                    onDelete={handleDeleteRecurring}
                 />
             )}
         </div>
@@ -459,8 +693,8 @@ function TransactionModal({ onClose, onSave, categories = [], onAddCategory }: a
     };
 
     return (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-sm">
-            <div className="flex items-center justify-center p-4 text-center" onClick={onClose}>
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-sm" onClick={onClose}>
+            <div className="flex items-start justify-center p-4 pt-20 text-center min-h-full">
                 <div
                     className="relative w-full max-w-md transform overflow-hidden rounded-2xl bg-[#1e232d] border border-white/10 p-6 text-left align-middle shadow-xl transition-all"
                     onClick={e => e.stopPropagation()}
@@ -615,8 +849,8 @@ function RecurringModal({ onClose, items, onSave, onDelete }: any) {
     };
 
     return (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-sm">
-            <div className="flex items-center justify-center p-4 text-center" onClick={onClose}>
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-sm" onClick={onClose}>
+            <div className="flex items-start justify-center p-4 pt-20 text-center min-h-full">
                 <div
                     className="relative w-full max-w-2xl transform overflow-hidden rounded-2xl bg-[#1e232d] border border-white/10 p-6 text-left align-middle shadow-xl transition-all"
                     onClick={e => e.stopPropagation()}
@@ -653,7 +887,7 @@ function RecurringModal({ onClose, items, onSave, onDelete }: any) {
                                 <div className="space-y-2">
                                     {newItems.map((item, idx) => (
                                         <div key={idx} className="flex justify-between items-center p-2 rounded bg-emerald-500/10 border border-emerald-500/20">
-                                            <span className="text-white text-sm">{item.description} - R$ {item.amount} (Dia {item.dayOfMonth})</span>
+                                            <span className="text-white text-sm">{item.description} - {item.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} (Dia {item.dayOfMonth})</span>
                                             <button onClick={() => setNewItems(prev => prev.filter((_, i) => i !== idx))} className="text-rose-400 hover:text-rose-300">
                                                 <Trash2 size={16} />
                                             </button>
@@ -677,7 +911,9 @@ function RecurringModal({ onClose, items, onSave, onDelete }: any) {
                                             <span className="text-xs text-slate-400">{item.type === 'income' ? 'Entrada' : 'Saída'} • Dia {item.dayOfMonth}</span>
                                         </div>
                                         <div className="flex items-center gap-4">
-                                            <span className="text-white">R$ {item.amount}</span>
+                                            <span className="text-white">
+                                                {item.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                            </span>
                                             <button onClick={() => onDelete(item.id)} className="text-rose-400 hover:text-rose-300 opacity-50 hover:opacity-100">
                                                 <Trash2 size={18} />
                                             </button>
