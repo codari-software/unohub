@@ -7,6 +7,7 @@ export default function Auth() {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [isLogin, setIsLogin] = useState(true);
+    const [isForgotPassword, setIsForgotPassword] = useState(false);
 
     // Auth Step: 'auth' | 'link-sent'
     const [step, setStep] = useState<'auth' | 'link-sent'>('auth');
@@ -161,6 +162,25 @@ export default function Auth() {
         }
     };
 
+    const handleForgotPassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        setMessage(null);
+
+        try {
+            const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+                redirectTo: window.location.origin + '/update-password',
+            });
+
+            if (error) throw error;
+            setMessage({ type: 'success', text: 'Se o e-mail estiver cadastrado, você receberá um link para redefinir sua senha.' });
+        } catch (error: any) {
+            setMessage({ type: 'error', text: translateError(error.message || error.toString()) });
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="min-h-screen w-full bg-[#0f1115] flex items-center justify-center p-4 relative overflow-x-hidden overflow-y-auto">
             {/* Background Effects */}
@@ -179,12 +199,15 @@ export default function Auth() {
                         className="w-12 h-12 rounded-xl mx-auto shadow-xl shadow-indigo-500/20 mb-3 cursor-pointer hover:scale-105 transition-transform object-cover"
                     />
                     <h1 className="text-2xl font-bold text-white mb-2 tracking-tight">
-                        {step === 'link-sent' ? 'Verifique seu e-mail' : (isLogin ? 'Bem-vindo de volta' : 'Crie sua conta')}
+                        {step === 'link-sent' ? 'Verifique seu e-mail' :
+                            isForgotPassword ? 'Redefinir Senha' :
+                                (isLogin ? 'Bem-vindo de volta' : 'Crie sua conta')}
                     </h1>
                     <p className="text-sm text-slate-400 max-w-sm mx-auto">
                         {step === 'link-sent'
                             ? `Enviamos um link de confirmação para ${email}`
-                            : (isLogin ? 'Digite suas credenciais para acessar o painel.' : 'Preencha os dados abaixo para começar.')}
+                            : isForgotPassword ? 'Digite seu e-mail para receber um link de redefinição.'
+                                : (isLogin ? 'Digite suas credenciais para acessar o painel.' : 'Preencha os dados abaixo para começar.')}
                     </p>
                 </div>
 
@@ -233,7 +256,7 @@ export default function Auth() {
                             )}
                         </div>
                     ) : (
-                        <form onSubmit={handleAuth} className="space-y-5">
+                        <form onSubmit={isForgotPassword ? handleForgotPassword : handleAuth} className="space-y-5">
                             {/* Message Alert */}
                             {message && (
                                 <div className={`p-4 rounded-xl text-xs font-medium flex items-center justify-center ${message.type === 'error' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}`}>
@@ -243,7 +266,7 @@ export default function Auth() {
 
                             <div className="space-y-4">
                                 {/* Name Field - Only for Signup */}
-                                {!isLogin && (
+                                {!isLogin && !isForgotPassword && (
                                     <div className="relative group animate-fade-in">
                                         <User className="absolute left-4 top-3.5 text-slate-500 group-focus-within:text-indigo-400 transition-colors" size={20} />
                                         <input
@@ -269,21 +292,23 @@ export default function Auth() {
                                     />
                                 </div>
 
-                                <div className="relative group">
-                                    <Lock className="absolute left-4 top-3.5 text-slate-500 group-focus-within:text-indigo-400 transition-colors" size={20} />
-                                    <input
-                                        type="password"
-                                        placeholder="Sua senha"
-                                        className="w-full bg-black/40 border border-white/10 rounded-2xl p-3.5 pl-12 text-white placeholder:text-slate-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-base"
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        required
-                                        minLength={6}
-                                    />
-                                </div>
+                                {!isForgotPassword && (
+                                    <div className="relative group">
+                                        <Lock className="absolute left-4 top-3.5 text-slate-500 group-focus-within:text-indigo-400 transition-colors" size={20} />
+                                        <input
+                                            type="password"
+                                            placeholder="Sua senha"
+                                            className="w-full bg-black/40 border border-white/10 rounded-2xl p-3.5 pl-12 text-white placeholder:text-slate-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-base"
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            required
+                                            minLength={6}
+                                        />
+                                    </div>
+                                )}
 
                                 {/* Confirm Password Field - Only for Signup */}
-                                {!isLogin && (
+                                {!isLogin && !isForgotPassword && (
                                     <div className="relative group animate-fade-in">
                                         <CheckCircle className="absolute left-4 top-3.5 text-slate-500 group-focus-within:text-indigo-400 transition-colors" size={20} />
                                         <input
@@ -308,7 +333,7 @@ export default function Auth() {
                                     <Loader2 className="animate-spin" size={20} />
                                 ) : (
                                     <>
-                                        {isLogin ? 'Entrar' : 'Criar Conta'}
+                                        {isForgotPassword ? 'Enviar Link' : (isLogin ? 'Entrar' : 'Criar Conta')}
                                         <ArrowRight size={20} />
                                     </>
                                 )}
@@ -316,7 +341,7 @@ export default function Auth() {
                         </form>
                     )}
 
-                    {!isLogin && step !== 'link-sent' && (
+                    {!isLogin && !isForgotPassword && step !== 'link-sent' && (
                         <div className="mt-6 text-center">
                             <p className="text-slate-400 text-sm">
                                 Já tem uma conta?
@@ -330,7 +355,7 @@ export default function Auth() {
                         </div>
                     )}
 
-                    {isLogin && step !== 'link-sent' && (
+                    {isLogin && !isForgotPassword && step !== 'link-sent' && (
                         <div className="mt-6 text-center">
                             <p className="text-slate-400 text-sm">
                                 Não tem uma conta?
@@ -341,9 +366,23 @@ export default function Auth() {
                                     Cadastre-se
                                 </button>
                             </p>
-                            <p className="text-center mt-6 text-slate-500 hover:text-slate-300 cursor-pointer transition-colors text-sm font-medium">
+                            <button
+                                onClick={() => { setIsForgotPassword(true); setMessage(null); }}
+                                className="block mx-auto mt-6 text-slate-500 hover:text-slate-300 cursor-pointer transition-colors text-sm font-medium"
+                            >
                                 Esqueceu sua senha?
-                            </p>
+                            </button>
+                        </div>
+                    )}
+
+                    {isForgotPassword && (
+                        <div className="mt-6 text-center">
+                            <button
+                                onClick={() => { setIsForgotPassword(false); setMessage(null); }}
+                                className="text-slate-400 hover:text-white text-sm transition-colors"
+                            >
+                                Voltar para Login
+                            </button>
                         </div>
                     )}
                 </div>

@@ -4,6 +4,7 @@ import DashboardLayout from './layouts/DashboardLayout';
 import Auth from './components/Auth';
 import VerifySuccess from './components/VerifySuccess';
 import ProtectedRoute from './components/ProtectedRoute';
+import UpdatePassword from './components/UpdatePassword';
 import PublicRoute from './components/PublicRoute';
 import { Toaster } from 'sonner';
 import { PomodoroProvider } from './context/PomodoroContext';
@@ -32,6 +33,11 @@ function App() {
           <Route path="/dashboard" element={
             <ProtectedRoute>
               <DashboardLayout />
+            </ProtectedRoute>
+          } />
+          <Route path="/update-password" element={
+            <ProtectedRoute>
+              <UpdatePassword />
             </ProtectedRoute>
           } />
         </Routes>
