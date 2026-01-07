@@ -9,6 +9,7 @@ import {
     Clock,
     GraduationCap
 } from 'lucide-react';
+import { usePomodoro } from '../context/PomodoroContext';
 
 const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -35,20 +36,40 @@ export default function Sidebar({ activeTab, setActiveTab }: { activeTab: string
             <nav className="flex flex-col gap-2">
                 {menuItems.map((item) => {
                     const Icon = item.icon;
-                    const isActive = activeTab === item.id;
+                    const isActiveTab = activeTab === item.id;
+
+                    // Specific logic for Pomodoro badge
+                    let badge = null;
+                    if (item.id === 'pomodoro') {
+                        try {
+                            // eslint-disable-next-line react-hooks/rules-of-hooks
+                            const { isActive, timeLeft, formatTime } = usePomodoro();
+                            if (isActive && !isActiveTab) {
+                                badge = (
+                                    <span className="ml-auto text-xs font-mono bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded animate-pulse">
+                                        {formatTime(timeLeft)}
+                                    </span>
+                                );
+                            }
+                        } catch (e) {
+                            // Context might not be available if not wrapped properly yet (though it is)
+                        }
+                    }
+
                     return (
                         <button
                             key={item.id}
                             onClick={() => setActiveTab(item.id)}
                             className={`
-                flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-[0.95rem] text-left w-full
-                ${isActive
+                flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-[0.95rem] text-left w-full relative
+                ${isActiveTab
                                     ? 'bg-indigo-500/15 text-white font-semibold shadow-[0_0_15px_rgba(99,102,241,0.1)]'
                                     : 'text-slate-400 hover:bg-white/5 hover:text-white font-medium'}
               `}
                         >
-                            <Icon size={20} className={isActive ? 'text-indigo-400' : 'currentColor'} />
-                            {item.label}
+                            <Icon size={20} className={isActiveTab ? 'text-indigo-400' : 'currentColor'} />
+                            <span className="flex-1">{item.label}</span>
+                            {badge}
                         </button>
                     );
                 })}

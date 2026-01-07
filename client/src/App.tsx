@@ -6,35 +6,38 @@ import VerifySuccess from './components/VerifySuccess';
 import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
 import { Toaster } from 'sonner';
+import { PomodoroProvider } from './context/PomodoroContext';
 
 import Privacy from './components/Privacy';
 import Terms from './components/Terms';
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={
-          <PublicRoute>
-            <LandingPage />
-          </PublicRoute>
-        } />
-        <Route path="/auth" element={
-          <PublicRoute>
-            <Auth />
-          </PublicRoute>
-        } />
-        <Route path="/verify-success" element={<VerifySuccess />} />
-        <Route path="/privacy" element={<Privacy />} />
-        <Route path="/terms" element={<Terms />} />
-        <Route path="/dashboard" element={
-          <ProtectedRoute>
-            <DashboardLayout />
-          </ProtectedRoute>
-        } />
-      </Routes>
-      <Toaster position="top-right" theme="dark" richColors />
-    </Router>
+    <PomodoroProvider>
+      <Router>
+        <Routes>
+          <Route path="/" element={
+            <PublicRoute>
+              <LandingPage />
+            </PublicRoute>
+          } />
+          <Route path="/auth" element={
+            <PublicRoute>
+              <Auth />
+            </PublicRoute>
+          } />
+          <Route path="/verify-success" element={<VerifySuccess />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <DashboardLayout />
+            </ProtectedRoute>
+          } />
+        </Routes>
+        <Toaster position="top-right" theme="dark" richColors />
+      </Router>
+    </PomodoroProvider>
   );
 }
 
