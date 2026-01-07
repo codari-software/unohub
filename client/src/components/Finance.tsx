@@ -24,6 +24,7 @@ import {
 import { format, isSameMonth, startOfMonth, parseISO, getDate } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
+import { toast } from 'sonner';
 
 // Types
 type TransactionType = 'income' | 'expense';
@@ -88,18 +89,42 @@ export default function Finance() {
 
     const [currentDate] = useState(new Date());
     const [loading, setLoading] = useState(true);
+    const [userId, setUserId] = useState<string | null>(null);
 
     const [processedMonths, setProcessedMonths] = useState<string[]>([]);
 
+    // Delete Confirmation State
+    const [deleteConfirmation, setDeleteConfirmation] = useState<{
+        isOpen: boolean;
+        type: 'transaction' | 'recurring' | null;
+        id: string | null;
+    }>({ isOpen: false, type: null, id: null });
+
     useEffect(() => {
-        Promise.all([fetchTransactions(), fetchRecurringItems(), fetchProcessedMonths()]);
+        // Fetch User and then Data
+        const init = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                setUserId(user.id);
+                // Fetch data only after we have the user
+                await Promise.all([
+                    fetchTransactions(user.id),
+                    fetchRecurringItems(user.id),
+                    fetchProcessedMonths(user.id)
+                ]);
+            } else {
+                setLoading(false);
+            }
+        };
+        init();
     }, []);
 
-    const fetchTransactions = async () => {
+    const fetchTransactions = async (uid: string) => {
         try {
             const { data, error } = await supabase
                 .from('transactions')
                 .select('*')
+                .eq('user_id', uid)
                 .order('date', { ascending: false });
 
             if (error) throw error;
@@ -122,11 +147,12 @@ export default function Finance() {
         }
     };
 
-    const fetchRecurringItems = async () => {
+    const fetchRecurringItems = async (uid: string) => {
         try {
             const { data, error } = await supabase
                 .from('recurring_items')
                 .select('*')
+                .eq('user_id', uid)
                 .order('day_of_month', { ascending: true });
 
             if (error) throw error;
@@ -146,11 +172,12 @@ export default function Finance() {
         }
     };
 
-    const fetchProcessedMonths = async () => {
+    const fetchProcessedMonths = async (uid: string) => {
         try {
             const { data, error } = await supabase
                 .from('processed_months')
-                .select('month_key');
+                .select('month_key')
+                .eq('user_id', uid);
 
             if (error) throw error;
             if (data) {
@@ -210,7 +237,10 @@ export default function Finance() {
         return data;
     }, [currentMonthTransactions, currentDate]);
 
+
+
     const handleAddTransaction = async (newTx: Omit<Transaction, 'id'>) => {
+        if (!userId) return;
         try {
             const { data, error } = await supabase
                 .from('transactions')
@@ -220,7 +250,8 @@ export default function Finance() {
                     type: newTx.type,
                     date: newTx.date,
                     category: newTx.category,
-                    is_recurring: newTx.isRecurring
+                    is_recurring: newTx.isRecurring,
+                    user_id: userId
                 }])
                 .select()
                 .single();
@@ -228,47 +259,67 @@ export default function Finance() {
             if (error) throw error;
 
             if (data) {
-                // Adapt database columns (snake_case) to frontend model (camelCase) if needed, 
-                // or ensure Supabase returns what we expect. 
-                // Note: The SQL I provided uses snake_case (is_recurring), so we map it.
                 const tx: Transaction = {
                     ...newTx,
                     id: data.id,
                 };
                 setTransactions(prev => [tx, ...prev]);
                 setShowAddModal(false);
+                toast.success('Transação adicionada com sucesso!');
             }
         } catch (error) {
             console.error('Error adding transaction:', error);
-            alert('Erro ao salvar transação');
+            toast.error('Erro ao salvar transação.');
         }
     };
 
-    const handleDeleteTransaction = async (id: string) => {
-        if (!confirm('Tem certeza que deseja apagar esta transação?')) return;
+    const confirmDeleteTransaction = (id: string) => {
+        setDeleteConfirmation({ isOpen: true, type: 'transaction', id });
+    };
 
+    const confirmDeleteRecurring = (id: string) => {
+        setDeleteConfirmation({ isOpen: true, type: 'recurring', id });
+    };
+
+    const executeDelete = async () => {
+        if (!deleteConfirmation.id || !deleteConfirmation.type) return;
+
+        if (deleteConfirmation.type === 'transaction') {
+            await deleteTransaction(deleteConfirmation.id);
+        } else {
+            await deleteRecurring(deleteConfirmation.id);
+        }
+        setDeleteConfirmation({ isOpen: false, type: null, id: null });
+    };
+
+    const deleteTransaction = async (id: string) => {
+        if (!userId) return;
         try {
             const { error } = await supabase
                 .from('transactions')
                 .delete()
-                .eq('id', id);
+                .eq('id', id)
+                .eq('user_id', userId);
 
             if (error) throw error;
 
             setTransactions(prev => prev.filter(t => t.id !== id));
+            toast.success('Transação removida.');
         } catch (error) {
             console.error('Error deleting transaction:', error);
-            alert('Erro ao apagar transação');
+            toast.error('Erro ao apagar transação.');
         }
     };
 
     const handleAddRecurring = async (items: RecurringItem[]) => {
+        if (!userId) return;
         const itemsToInsert = items.map(item => ({
             description: item.description,
             amount: item.amount,
             type: item.type,
             day_of_month: item.dayOfMonth,
-            category: item.category
+            category: item.category,
+            user_id: userId
         }));
 
         try {
@@ -290,26 +341,30 @@ export default function Finance() {
                 }));
                 setRecurringItems(prev => [...prev, ...newItems]);
                 setShowRecurringModal(false);
+                toast.success('Recorrências salvas com sucesso!');
             }
         } catch (error) {
             console.error('Error adding recurring:', error);
-            alert('Erro ao salvar recorrência');
+            toast.error('Erro ao salvar recorrência.');
         }
     };
 
-    const handleDeleteRecurring = async (id: string) => {
+    const deleteRecurring = async (id: string) => {
+        if (!userId) return;
         try {
             const { error } = await supabase
                 .from('recurring_items')
                 .delete()
-                .eq('id', id);
+                .eq('id', id)
+                .eq('user_id', userId);
 
             if (error) throw error;
 
             setRecurringItems(prev => prev.filter(i => i.id !== id));
+            toast.success('Recorrência removida.');
         } catch (error) {
             console.error('Error deleting recurring:', error);
-            alert('Erro ao deletar recorrência');
+            toast.error('Erro ao deletar recorrência.');
         }
     };
 
@@ -320,6 +375,7 @@ export default function Finance() {
     };
 
     const processRecurringToCurrentMonth = async (items: RecurringItem[]) => {
+        if (!userId) return;
         if (isCurrentMonthProcessed) return;
 
         const transactionsToInsert = items.map(item => ({
@@ -328,7 +384,8 @@ export default function Finance() {
             type: item.type,
             date: new Date(currentDate.getFullYear(), currentDate.getMonth(), item.dayOfMonth).toISOString(),
             category: item.category,
-            is_recurring: true
+            is_recurring: true,
+            user_id: userId
         }));
 
         try {
@@ -351,41 +408,46 @@ export default function Finance() {
                 }));
                 setTransactions(prev => [...newTransactions, ...prev]);
 
-                // Mark month as processed in DB
                 const { error: processedError } = await supabase
                     .from('processed_months')
-                    .insert([{ month_key: currentMonthKey }]);
+                    .upsert(
+                        [{ month_key: currentMonthKey, user_id: userId }],
+                        { onConflict: 'month_key,user_id', ignoreDuplicates: true }
+                    );
 
                 if (processedError) throw processedError;
 
                 setProcessedMonths(prev => [...prev, currentMonthKey]);
+                toast.success('Recorrências processadas com sucesso!');
             }
         } catch (error) {
             console.error('Error processing recurring:', error);
-            alert('Erro ao processar recorrentes');
+            toast.error('Erro ao processar recorrentes.');
         }
     };
 
     if (loading) {
         return (
-            <div className="h-full flex flex-col gap-6 pb-8">
+            <div className="h-full flex flex-col gap-6 pb-8 animate-pulse">
                 {/* Header / Summary Skeleton */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {[1, 2, 3].map((i) => (
-                        <div key={i} className="bg-[#1e232d]/70 border border-white/5 rounded-2xl p-6 backdrop-blur-xl flex items-center gap-4 animate-pulse">
-                            <div className="w-12 h-12 rounded-xl bg-white/5"></div>
-                            <div className="flex-1">
-                                <div className="h-4 w-20 bg-white/5 rounded mb-2"></div>
-                                <div className="h-8 w-32 bg-white/5 rounded"></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {[1, 2, 3, 4].map((i) => (
+                        <div key={i} className="bg-[#1e232d]/70 border border-white/5 rounded-2xl p-6 flex flex-col gap-2">
+                            <div className="flex justify-between items-start">
+                                <div className="h-4 w-24 bg-white/5 rounded"></div>
+                                <div className="w-8 h-8 rounded-lg bg-white/5"></div>
                             </div>
+                            <div className="h-8 w-32 bg-white/5 rounded mt-2"></div>
                         </div>
                     ))}
                 </div>
 
                 {/* Actions & Charts Skeleton */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-[400px]">
+                    {/* Left Column Skeleton */}
                     <div className="lg:col-span-2 flex flex-col gap-6">
-                        <div className="bg-[#1e232d]/70 border border-white/5 rounded-2xl p-6 backdrop-blur-xl flex flex-col animate-pulse min-h-[350px]">
+                        {/* Chart Area Skeleton */}
+                        <div className="bg-[#1e232d]/70 border border-white/5 rounded-2xl p-6 h-[400px]">
                             <div className="flex justify-between items-center mb-6">
                                 <div className="h-6 w-48 bg-white/5 rounded"></div>
                                 <div className="flex gap-2">
@@ -393,21 +455,32 @@ export default function Finance() {
                                     <div className="h-4 w-20 bg-white/5 rounded"></div>
                                 </div>
                             </div>
-                            <div className="flex-1 w-full bg-white/5 rounded-xl"></div>
+                            <div className="w-full h-[300px] bg-white/5 rounded-xl"></div>
                         </div>
 
-                        <div className="bg-[#1e232d]/70 border border-white/5 rounded-2xl p-6 backdrop-blur-xl flex-1 animate-pulse">
+                        {/* Transaction History Skeleton */}
+                        <div className="bg-[#1e232d]/70 border border-white/5 rounded-2xl p-6 flex-1">
                             <div className="h-6 w-48 bg-white/5 rounded mb-4"></div>
                             <div className="space-y-3">
                                 {[1, 2, 3].map((i) => (
-                                    <div key={i} className="h-16 w-full bg-white/5 rounded-lg"></div>
+                                    <div key={i} className="flex justify-between items-center p-4 rounded-xl bg-white/5 border border-white/5">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-10 h-10 rounded-full bg-white/10"></div>
+                                            <div className="flex flex-col gap-2">
+                                                <div className="h-4 w-32 bg-white/10 rounded"></div>
+                                                <div className="h-3 w-20 bg-white/10 rounded"></div>
+                                            </div>
+                                        </div>
+                                        <div className="h-5 w-24 bg-white/10 rounded"></div>
+                                    </div>
                                 ))}
                             </div>
                         </div>
                     </div>
 
+                    {/* Right Column Skeleton */}
                     <div className="flex flex-col gap-6">
-                        <div className="bg-[#1e232d]/70 border border-white/5 rounded-2xl p-6 backdrop-blur-xl animate-pulse">
+                        <div className="bg-[#1e232d]/70 border border-white/5 rounded-2xl p-6">
                             <div className="h-6 w-32 bg-white/5 rounded mb-4"></div>
                             <div className="flex flex-col gap-3">
                                 <div className="h-12 w-full bg-white/5 rounded-xl"></div>
@@ -415,13 +488,19 @@ export default function Finance() {
                             </div>
                         </div>
 
-                        <div className="bg-[#1e232d]/70 border border-white/5 rounded-2xl p-6 backdrop-blur-xl flex-1 animate-pulse">
+                        <div className="bg-[#1e232d]/70 border border-white/5 rounded-2xl p-6 flex-1">
                             <div className="flex justify-between items-center mb-4">
                                 <div className="h-6 w-32 bg-white/5 rounded"></div>
                             </div>
                             <div className="space-y-3">
-                                {[1, 2, 3].map((i) => (
-                                    <div key={i} className="h-16 w-full bg-white/5 rounded-lg"></div>
+                                {[1, 2, 3, 4].map((i) => (
+                                    <div key={i} className="flex justify-between items-center p-3 rounded-lg bg-white/5 border border-white/5">
+                                        <div className="flex flex-col gap-2">
+                                            <div className="h-4 w-24 bg-white/10 rounded"></div>
+                                            <div className="h-3 w-20 bg-white/10 rounded"></div>
+                                        </div>
+                                        <div className="h-4 w-16 bg-white/10 rounded"></div>
+                                    </div>
                                 ))}
                             </div>
                         </div>
@@ -432,7 +511,7 @@ export default function Finance() {
     }
 
     return (
-        <div className="h-full flex flex-col gap-6 animate-fade-in pb-8">
+        <div className="h-full flex flex-col gap-6 animate-fade-in pb-8 relative">
             {/* Header / Summary */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <SummaryCard
@@ -532,7 +611,7 @@ export default function Finance() {
                                                 {t.type === 'income' ? '+' : '-'} R$ {t.amount.toFixed(2)}
                                             </span>
                                             <button
-                                                onClick={() => handleDeleteTransaction(t.id)}
+                                                onClick={() => confirmDeleteTransaction(t.id)}
                                                 className="text-slate-500 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-all p-2"
                                                 title="Apagar transação"
                                             >
@@ -623,8 +702,34 @@ export default function Finance() {
                     onClose={() => setShowRecurringModal(false)}
                     items={recurringItems}
                     onSave={handleAddRecurring}
-                    onDelete={handleDeleteRecurring}
+                    onDelete={confirmDeleteRecurring}
                 />
+            )}
+
+            {/* Confirmation Modal */}
+            {deleteConfirmation.isOpen && (
+                <div className="fixed inset-0 z-[60] overflow-y-auto bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-[#1e232d] border border-white/10 p-6 rounded-2xl w-full max-w-sm shadow-2xl animate-fade-in relative z-[70]">
+                        <h3 className="text-lg font-bold text-white mb-2">Confirmar Exclusão</h3>
+                        <p className="text-slate-400 text-sm mb-6">
+                            Tem certeza que deseja remover este item? Esta ação não pode ser desfeita.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setDeleteConfirmation({ ...deleteConfirmation, isOpen: false })}
+                                className="flex-1 px-4 py-2 rounded-xl text-slate-300 hover:bg-white/5 transition-colors font-medium text-sm"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={executeDelete}
+                                className="flex-1 px-4 py-2 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/50 hover:bg-rose-500/30 transition-colors font-medium text-sm"
+                            >
+                                Apagar
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

@@ -15,28 +15,35 @@ import {
 export default function LandingPage() {
     const navigate = useNavigate();
 
+    const scrollToSection = (id: string) => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth' });
+        }
+    };
+
     return (
-        <div className="min-h-screen bg-[#0f1115] text-white selection:bg-indigo-500/30 selection:text-indigo-200 overflow-x-hidden">
+        <div className="h-screen w-full bg-[#0f1115] text-white selection:bg-indigo-500/30 selection:text-indigo-200 overflow-x-hidden overflow-y-auto">
             {/* Navbar */}
             <nav className="fixed top-0 w-full z-50 bg-[#0f1115]/80 backdrop-blur-xl border-b border-white/5">
                 <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/20">
-                            U
-                        </div>
+                        <img src="/logo.png" alt="UnoHub" className="w-8 h-8 rounded-lg shadow-lg shadow-indigo-500/20" />
                         <span className="text-xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
                             UnoHub
                         </span>
                     </div>
 
                     <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-400">
-                        <a href="#features" className="hover:text-white transition-colors">Funcionalidades</a>
-                        <a href="#about" className="hover:text-white transition-colors">Sobre</a>
-                        <a href="#pricing" className="hover:text-white transition-colors">Preços</a>
+                        <button onClick={() => scrollToSection('features')} className="hover:text-white transition-colors">Funcionalidades</button>
+                        <button onClick={() => scrollToSection('integration')} className="hover:text-white transition-colors">Integração</button>
+                        <button onClick={() => scrollToSection('testimonials')} className="hover:text-white transition-colors">Depoimentos</button>
+                        <button onClick={() => scrollToSection('about')} className="hover:text-white transition-colors">Sobre</button>
+                        <button onClick={() => scrollToSection('faq')} className="hover:text-white transition-colors">FAQ</button>
                     </div>
 
                     <button
-                        onClick={() => navigate('/dashboard')}
+                        onClick={() => navigate('/auth')}
                         className="bg-white/5 hover:bg-white/10 border border-white/10 text-white px-5 py-2 rounded-full font-medium transition-all hover:scale-105 active:scale-95 text-sm"
                     >
                         Entrar
@@ -65,7 +72,7 @@ export default function LandingPage() {
 
                     <div className="flex flex-col md:flex-row items-center justify-center gap-4">
                         <button
-                            onClick={() => navigate('/dashboard')}
+                            onClick={() => navigate('/auth')}
                             className="w-full md:w-auto px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold text-lg shadow-xl shadow-indigo-600/20 hover:shadow-indigo-600/40 transition-all hover:-translate-y-1 flex items-center justify-center gap-2 group"
                         >
                             Começar Grátis
@@ -159,7 +166,7 @@ export default function LandingPage() {
             </section>
 
             {/* Integration Magic */}
-            <section className="py-24 px-6 bg-[#161b22]">
+            <section id="integration" className="py-24 px-6 bg-[#161b22]">
                 <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-16">
                     <div className="flex-1 space-y-8">
                         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-sm font-medium">
@@ -212,7 +219,7 @@ export default function LandingPage() {
             </section>
 
             {/* Social Proof & Trust */}
-            <section className="py-24 px-6 bg-[#0f1115] border-t border-white/5">
+            <section id="testimonials" className="py-24 px-6 bg-[#0f1115] border-t border-white/5">
                 <div className="max-w-4xl mx-auto text-center space-y-12">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center divide-y md:divide-y-0 md:divide-x divide-white/10">
                         <div>
@@ -244,8 +251,37 @@ export default function LandingPage() {
                 </div>
             </section>
 
+            {/* About Section */}
+            <section id="about" className="py-24 px-6 bg-[#0f1115]">
+                <div className="max-w-4xl mx-auto text-center space-y-8 animate-fade-in">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-sm font-medium">
+                        Sobre Nós
+                    </div>
+                    <h2 className="text-4xl md:text-5xl font-bold text-white">
+                        Simplificando a <span className="text-indigo-500">vida digital</span>.
+                    </h2>
+                    <p className="text-lg text-slate-400 leading-relaxed">
+                        Acreditamos que a produtividade não deve ser complicada. Em um mundo cheio de distrações e aplicativos fragmentados, o UnoHub nasceu com uma missão simples: devolver o controle do seu tempo.
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8">
+                        <div className="bg-[#1e232d]/40 p-8 rounded-2xl border border-white/5 text-left">
+                            <h3 className="text-xl font-bold text-white mb-3">Nossa Missão</h3>
+                            <p className="text-slate-400">
+                                Unificar as ferramentas essenciais do dia a dia em uma plataforma intuitiva e inteligente.
+                            </p>
+                        </div>
+                        <div className="bg-[#1e232d]/40 p-8 rounded-2xl border border-white/5 text-left">
+                            <h3 className="text-xl font-bold text-white mb-3">Nossa Visão</h3>
+                            <p className="text-slate-400">
+                                Um futuro onde a tecnologia trabalha para você de forma invisível, liberando sua mente para o que realmente importa.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             {/* FAQ */}
-            <section className="py-24 px-6 bg-[#161b22]">
+            <section id="faq" className="py-24 px-6 bg-[#161b22]">
                 <div className="max-w-3xl mx-auto">
                     <h2 className="text-3xl font-bold text-center text-white mb-12">Dúvidas Comuns</h2>
                     <div className="space-y-6">
@@ -262,23 +298,19 @@ export default function LandingPage() {
                 <div className="max-w-5xl mx-auto bg-gradient-to-r from-indigo-900/50 to-purple-900/50 rounded-3xl p-8 md:p-16 text-center border border-white/10 relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10"></div>
 
-                    <div className="max-w-5xl mx-auto bg-gradient-to-r from-indigo-900/50 to-purple-900/50 rounded-3xl p-8 md:p-16 text-center border border-white/10 relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10"></div>
-
-                        <h2 className="text-3xl md:text-4xl font-bold text-white mb-6 relative z-10">
-                            Pronto para organizar sua vida?
-                        </h2>
-                        <p className="text-indigo-200 text-lg mb-10 max-w-2xl mx-auto relative z-10">
-                            Leve apenas 2 minutos para configurar sua nova rotina.
-                        </p>
-                        <button
-                            onClick={() => navigate('/dashboard')}
-                            className="px-10 py-5 bg-white text-indigo-900 rounded-full font-bold text-xl hover:bg-indigo-50 transition-all hover:scale-105 shadow-xl relative z-10"
-                        >
-                            Criar Conta Grátis
-                        </button>
-                        <p className="text-xs text-indigo-300/60 mt-4 relative z-10">Sem cartão de crédito necessário.</p>
-                    </div>
+                    <h2 className="text-3xl md:text-4xl font-bold text-white mb-6 relative z-10">
+                        Pronto para organizar sua vida?
+                    </h2>
+                    <p className="text-indigo-200 text-lg mb-10 max-w-2xl mx-auto relative z-10">
+                        Leve apenas 2 minutos para configurar sua nova rotina.
+                    </p>
+                    <button
+                        onClick={() => navigate('/auth')}
+                        className="px-10 py-5 bg-white text-indigo-900 rounded-full font-bold text-xl hover:bg-indigo-50 transition-all hover:scale-105 shadow-xl relative z-10"
+                    >
+                        Criar Conta Grátis
+                    </button>
+                    <p className="text-xs text-indigo-300/60 mt-4 relative z-10">Sem cartão de crédito necessário.</p>
                 </div>
             </section>
 
@@ -286,16 +318,15 @@ export default function LandingPage() {
             <footer className="border-t border-white/5 py-12 px-6">
                 <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
                     <div className="flex items-center gap-2 opacity-50">
-                        <div className="w-6 h-6 rounded-md bg-white/10 flex items-center justify-center font-bold text-xs">U</div>
+                        <img src="/logo.png" alt="UnoHub" className="w-6 h-6 rounded-md opacity-80" />
                         <span className="font-semibold">UnoHub</span>
                     </div>
                     <div className="text-slate-500 text-sm">
                         © 2026 UnoHub Inc. Todos os direitos reservados.
                     </div>
                     <div className="flex gap-6 text-slate-500">
-                        <a href="#" className="hover:text-slate-300">Privacidade</a>
-                        <a href="#" className="hover:text-slate-300">Termos</a>
-                        <a href="#" className="hover:text-slate-300">Twitter</a>
+                        <button onClick={() => navigate('/privacy')} className="hover:text-slate-300">Privacidade</button>
+                        <button onClick={() => navigate('/terms')} className="hover:text-slate-300">Termos</button>
                     </div>
                 </div>
             </footer>
