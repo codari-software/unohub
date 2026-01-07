@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Play, Pause, RotateCcw } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function Pomodoro() {
     const [timeLeft, setTimeLeft] = useState(25 * 60);
     const [isActive, setIsActive] = useState(false);
     const [mode, setMode] = useState('focus'); // focus, short, long
+
+    const [completedCycles, setCompletedCycles] = useState(0);
 
     useEffect(() => {
         let interval: any = null;
@@ -14,10 +17,34 @@ export default function Pomodoro() {
             }, 1000);
         } else if (timeLeft === 0) {
             setIsActive(false);
-            // Play sound?
+
+            // Play "Sininho"
+            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+            audio.volume = 0.5;
+            audio.play().catch(e => console.error('Erro ao tocar som:', e));
+
+            if (mode === 'focus') {
+                const newCycles = completedCycles + 1;
+                setCompletedCycles(newCycles);
+
+                if (newCycles % 4 === 0) {
+                    toast.success('Ciclo completo! Hora de uma pausa longa.', { duration: 5000 });
+                    setMode('long');
+                    setTimeLeft(15 * 60);
+                } else {
+                    toast.success('Foco finalizado! Hora de uma pausa curta.', { duration: 5000 });
+                    setMode('short');
+                    setTimeLeft(5 * 60);
+                }
+            } else {
+                // Break is over
+                toast.info('Pausa finalizada! De volta ao foco.', { duration: 5000 });
+                setMode('focus');
+                setTimeLeft(25 * 60);
+            }
         }
         return () => clearInterval(interval);
-    }, [isActive, timeLeft]);
+    }, [isActive, timeLeft, mode, completedCycles]);
 
     const toggleTimer = () => setIsActive(!isActive);
     const resetTimer = () => {
@@ -83,6 +110,15 @@ export default function Pomodoro() {
                         <RotateCcw size={24} />
                     </button>
                 </div>
+            </div>
+
+            <div className="flex gap-2">
+                <button
+                    onClick={() => setTimeLeft(5)}
+                    className="text-xs text-slate-600 hover:text-indigo-400 transition-colors"
+                >
+                    Test (5s)
+                </button>
             </div>
 
             <p className="text-slate-500 text-sm font-medium italic tracking-wide opacity-70">
