@@ -3,7 +3,6 @@ import {
     CircleDollarSign,
     TrendingUp,
     TrendingDown,
-    Calendar,
     Plus,
     Repeat,
     Trash2,
@@ -11,8 +10,6 @@ import {
     History
 } from 'lucide-react';
 import {
-    BarChart,
-    Bar,
     XAxis,
     YAxis,
     CartesianGrid,
@@ -518,8 +515,8 @@ export default function Finance() {
                     title="Saldo Anterior"
                     value={previousBalance}
                     icon={History}
-                    color="text-slate-400"
-                    bgColor="bg-slate-400/10"
+                    color="text-[var(--color-text-secondary)]"
+                    bgColor="bg-[var(--color-secondary)]/10"
                 />
                 <SummaryCard
                     title="Entradas"
@@ -549,14 +546,14 @@ export default function Finance() {
                 {/* Left Column: Chart & History */}
                 <div className="lg:col-span-2 flex flex-col gap-6">
                     {/* Chart Area */}
-                    <div className="bg-[#1e232d]/70 border border-white/5 rounded-2xl p-6 backdrop-blur-xl flex flex-col h-[400px]">
+                    <div className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-2xl p-6 backdrop-blur-xl flex flex-col h-[400px]">
                         <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-lg font-semibold text-white">Fluxo de Caixa - {format(currentDate, 'MMMM', { locale: ptBR })}</h3>
+                            <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">Fluxo de Caixa - {format(currentDate, 'MMMM', { locale: ptBR })}</h3>
                             <div className="flex gap-2">
-                                <div className="flex items-center gap-2 text-sm text-slate-400">
+                                <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
                                     <div className="w-3 h-3 rounded-full bg-emerald-400"></div> Entradas
                                 </div>
-                                <div className="flex items-center gap-2 text-sm text-slate-400">
+                                <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
                                     <div className="w-3 h-3 rounded-full bg-rose-400"></div> Saídas
                                 </div>
                             </div>
@@ -574,12 +571,12 @@ export default function Finance() {
                                             <stop offset="95%" stopColor="#fb7185" stopOpacity={0} />
                                         </linearGradient>
                                     </defs>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                                    <XAxis dataKey="day" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                                    <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `R$${value}`} />
+                                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                                    <XAxis dataKey="day" stroke="var(--color-text-secondary)" fontSize={12} tickLine={false} axisLine={false} />
+                                    <YAxis stroke="var(--color-text-secondary)" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `R$${value}`} />
                                     <Tooltip
-                                        contentStyle={{ backgroundColor: '#1e232d', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
-                                        itemStyle={{ color: '#fff' }}
+                                        contentStyle={{ backgroundColor: 'var(--color-card)', border: '1px solid var(--color-border)', borderRadius: '8px' }}
+                                        itemStyle={{ color: 'var(--color-text-primary)' }}
                                     />
                                     <Area type="monotone" dataKey="income" stroke="#34d399" fillOpacity={1} fill="url(#colorIncome)" />
                                     <Area type="monotone" dataKey="expense" stroke="#fb7185" fillOpacity={1} fill="url(#colorExpense)" />
@@ -589,19 +586,19 @@ export default function Finance() {
                     </div>
 
                     {/* Transaction History */}
-                    <div className="bg-[#1e232d]/70 border border-white/5 rounded-2xl p-6 backdrop-blur-xl flex-1">
-                        <h3 className="text-lg font-semibold text-white mb-4">Histórico de Transações</h3>
+                    <div className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-2xl p-6 backdrop-blur-xl flex-1">
+                        <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-4">Histórico de Transações</h3>
                         <div className="space-y-3">
                             {currentMonthTransactions.length > 0 ? (
                                 currentMonthTransactions.map((t) => (
-                                    <div key={t.id} className="flex justify-between items-center p-4 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 transition-colors group">
+                                    <div key={t.id} className="flex justify-between items-center p-4 rounded-xl bg-[var(--color-glass)] border border-[var(--color-border)] hover:border-[var(--color-text-secondary)]/10 transition-colors group">
                                         <div className="flex items-center gap-4">
                                             <div className={`p-3 rounded-full ${t.type === 'income' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
                                                 {t.type === 'income' ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
                                             </div>
                                             <div>
-                                                <p className="font-semibold text-white">{t.description}</p>
-                                                <p className="text-sm text-slate-400 capitalize">
+                                                <p className="font-semibold text-[var(--color-text-primary)]">{t.description}</p>
+                                                <p className="text-sm text-[var(--color-text-secondary)] capitalize">
                                                     {format(parseISO(t.date), 'dd/MM')} • {t.category}
                                                 </p>
                                             </div>
@@ -612,7 +609,7 @@ export default function Finance() {
                                             </span>
                                             <button
                                                 onClick={() => confirmDeleteTransaction(t.id)}
-                                                className="text-slate-500 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-all p-2"
+                                                className="text-[var(--color-text-secondary)] hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-all p-2"
                                                 title="Apagar transação"
                                             >
                                                 <Trash2 size={18} />
@@ -621,7 +618,7 @@ export default function Finance() {
                                     </div>
                                 ))
                             ) : (
-                                <p className="text-center text-slate-500 py-8">Nenhuma transação neste mês.</p>
+                                <p className="text-center text-[var(--color-text-secondary)] py-8">Nenhuma transação neste mês.</p>
                             )}
                         </div>
                     </div>
@@ -629,8 +626,8 @@ export default function Finance() {
 
                 {/* Actions & Recurring */}
                 <div className="flex flex-col gap-6">
-                    <div className="bg-[#1e232d]/70 border border-white/5 rounded-2xl p-6 backdrop-blur-xl">
-                        <h3 className="text-lg font-semibold text-white mb-4">Ações Rápidas</h3>
+                    <div className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-2xl p-6 backdrop-blur-xl">
+                        <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-4">Ações Rápidas</h3>
                         <div className="flex flex-col gap-3">
                             <button
                                 onClick={() => setShowAddModal(true)}
@@ -640,16 +637,16 @@ export default function Finance() {
                             </button>
                             <button
                                 onClick={() => setShowRecurringModal(true)}
-                                className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-white p-3 rounded-xl font-semibold transition-all w-full border border-white/10"
+                                className="flex items-center justify-center gap-2 bg-[var(--color-glass)] hover:bg-[var(--color-glass)]/80 text-[var(--color-text-primary)] p-3 rounded-xl font-semibold transition-all w-full border border-[var(--color-border)]"
                             >
                                 <Repeat size={20} /> Gerenciar Recorrências
                             </button>
                         </div>
                     </div>
 
-                    <div className="bg-[#1e232d]/70 border border-white/5 rounded-2xl p-6 backdrop-blur-xl flex-1 overflow-auto">
+                    <div className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-2xl p-6 backdrop-blur-xl flex-1 overflow-auto">
                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-semibold text-white">Recorrentes</h3>
+                            <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">Recorrentes</h3>
                             {recurringItems.length > 0 && (
                                 isCurrentMonthProcessed ? (
                                     <span className="flex items-center gap-1 text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded border border-emerald-500/20">
@@ -669,10 +666,10 @@ export default function Finance() {
                         </div>
                         <div className="space-y-3">
                             {recurringItems.map(item => (
-                                <div key={item.id} className="flex justify-between items-center p-3 rounded-lg bg-white/5 border border-white/5 hover:border-white/10 transition-colors group">
+                                <div key={item.id} className="flex justify-between items-center p-3 rounded-lg bg-[var(--color-glass)] border border-[var(--color-border)] hover:border-[var(--color-text-secondary)]/10 transition-colors group">
                                     <div className="flex flex-col">
-                                        <span className="font-medium text-white">{item.description}</span>
-                                        <span className="text-xs text-slate-400">Dia {item.dayOfMonth} • {item.category}</span>
+                                        <span className="font-medium text-[var(--color-text-primary)]">{item.description}</span>
+                                        <span className="text-xs text-[var(--color-text-secondary)]">Dia {item.dayOfMonth} • {item.category}</span>
                                     </div>
                                     <span className={`font-bold ${item.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}`}>
                                         R$ {item.amount.toFixed(2)}
@@ -680,7 +677,7 @@ export default function Finance() {
                                 </div>
                             ))}
                             {recurringItems.length === 0 && (
-                                <p className="text-slate-500 text-sm text-center py-4">Nenhuma conta recorrente configurada.</p>
+                                <p className="text-[var(--color-text-secondary)] text-sm text-center py-4">Nenhuma conta recorrente configurada.</p>
                             )}
                         </div>
                     </div>
@@ -709,15 +706,15 @@ export default function Finance() {
             {/* Confirmation Modal */}
             {deleteConfirmation.isOpen && (
                 <div className="fixed inset-0 z-[60] overflow-y-auto bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-[#1e232d] border border-white/10 p-6 rounded-2xl w-full max-w-sm shadow-2xl animate-fade-in relative z-[70]">
-                        <h3 className="text-lg font-bold text-white mb-2">Confirmar Exclusão</h3>
-                        <p className="text-slate-400 text-sm mb-6">
+                    <div className="bg-[var(--color-card)] border border-[var(--color-border)] p-6 rounded-2xl w-full max-w-sm shadow-2xl animate-fade-in relative z-[70]">
+                        <h3 className="text-lg font-bold text-[var(--color-text-primary)] mb-2">Confirmar Exclusão</h3>
+                        <p className="text-[var(--color-text-secondary)] text-sm mb-6">
                             Tem certeza que deseja remover este item? Esta ação não pode ser desfeita.
                         </p>
                         <div className="flex gap-3">
                             <button
                                 onClick={() => setDeleteConfirmation({ ...deleteConfirmation, isOpen: false })}
-                                className="flex-1 px-4 py-2 rounded-xl text-slate-300 hover:bg-white/5 transition-colors font-medium text-sm"
+                                className="flex-1 px-4 py-2 rounded-xl text-[var(--color-text-secondary)] hover:bg-[var(--color-glass)] transition-colors font-medium text-sm"
                             >
                                 Cancelar
                             </button>
@@ -737,13 +734,13 @@ export default function Finance() {
 
 function SummaryCard({ title, value, icon: Icon, color, bgColor }: any) {
     return (
-        <div className="bg-[#1e232d]/70 border border-white/5 rounded-2xl p-6 backdrop-blur-xl flex items-center gap-4">
+        <div className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-2xl p-6 backdrop-blur-xl flex items-center gap-4">
             <div className={`p-4 rounded-xl ${bgColor} ${color}`}>
                 <Icon size={28} />
             </div>
             <div>
-                <p className="text-slate-400 font-medium">{title}</p>
-                <h3 className="text-2xl font-bold text-white mt-1">
+                <p className="text-[var(--color-text-secondary)] font-medium">{title}</p>
+                <h3 className="text-2xl font-bold text-[var(--color-text-primary)] mt-1">
                     R$ {value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </h3>
             </div>
@@ -801,15 +798,15 @@ function TransactionModal({ onClose, onSave, categories = [], onAddCategory }: a
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-sm" onClick={onClose}>
             <div className="flex items-start justify-center p-4 pt-20 text-center min-h-full">
                 <div
-                    className="relative w-full max-w-md transform overflow-hidden rounded-2xl bg-[#1e232d] border border-white/10 p-6 text-left align-middle shadow-xl transition-all"
+                    className="relative w-full max-w-md transform overflow-hidden rounded-2xl bg-[var(--color-card)] border border-[var(--color-border)] p-6 text-left align-middle shadow-xl transition-all"
                     onClick={e => e.stopPropagation()}
                 >
-                    <h3 className="text-xl font-bold text-white mb-6">Nova Transação</h3>
+                    <h3 className="text-xl font-bold text-[var(--color-text-primary)] mb-6">Nova Transação</h3>
                     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                         <input
                             type="text"
                             placeholder="Descrição"
-                            className="bg-black/20 border border-white/10 rounded-lg p-3 text-white focus:border-indigo-500 outline-none"
+                            className="bg-[var(--color-glass)] border border-[var(--color-border)] rounded-lg p-3 text-[var(--color-text-primary)] focus:border-indigo-500 outline-none placeholder:text-[var(--color-text-secondary)]"
                             value={formData.description}
                             onChange={e => setFormData({ ...formData, description: e.target.value })}
                             required
@@ -817,7 +814,7 @@ function TransactionModal({ onClose, onSave, categories = [], onAddCategory }: a
                         <input
                             type="text"
                             placeholder="Valor (R$ 0,00)"
-                            className="bg-black/20 border border-white/10 rounded-lg p-3 text-white focus:border-indigo-500 outline-none"
+                            className="bg-[var(--color-glass)] border border-[var(--color-border)] rounded-lg p-3 text-[var(--color-text-primary)] focus:border-indigo-500 outline-none placeholder:text-[var(--color-text-secondary)]"
                             value={formData.amount}
                             onChange={handleAmountChange}
                             required
@@ -825,14 +822,14 @@ function TransactionModal({ onClose, onSave, categories = [], onAddCategory }: a
                         <div className="flex gap-2">
                             <button
                                 type="button"
-                                className={`flex-1 p-3 rounded-lg font-medium transition-colors ${formData.type === 'income' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'bg-black/20 text-slate-400 border border-transparent'}`}
+                                className={`flex-1 p-3 rounded-lg font-medium transition-colors ${formData.type === 'income' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'bg-[var(--color-glass)] text-[var(--color-text-secondary)] border border-transparent'}`}
                                 onClick={() => setFormData({ ...formData, type: 'income' })}
                             >
                                 Entrada
                             </button>
                             <button
                                 type="button"
-                                className={`flex-1 p-3 rounded-lg font-medium transition-colors ${formData.type === 'expense' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/50' : 'bg-black/20 text-slate-400 border border-transparent'}`}
+                                className={`flex-1 p-3 rounded-lg font-medium transition-colors ${formData.type === 'expense' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/50' : 'bg-[var(--color-glass)] text-[var(--color-text-secondary)] border border-transparent'}`}
                                 onClick={() => setFormData({ ...formData, type: 'expense' })}
                             >
                                 Saída
@@ -842,7 +839,7 @@ function TransactionModal({ onClose, onSave, categories = [], onAddCategory }: a
                             type="text"
                             placeholder="Data (DD/MM/AAAA)"
                             maxLength={10}
-                            className="bg-black/20 border border-white/10 rounded-lg p-3 text-white focus:border-indigo-500 outline-none"
+                            className="bg-[var(--color-glass)] border border-[var(--color-border)] rounded-lg p-3 text-[var(--color-text-primary)] focus:border-indigo-500 outline-none placeholder:text-[var(--color-text-secondary)]"
                             value={formData.date}
                             onChange={handleDateChange}
                             required
@@ -853,7 +850,7 @@ function TransactionModal({ onClose, onSave, categories = [], onAddCategory }: a
                                     <input
                                         type="text"
                                         placeholder="Nova categoria..."
-                                        className="flex-1 bg-black/20 border border-white/10 rounded-lg p-3 text-white focus:border-indigo-500 outline-none"
+                                        className="flex-1 bg-[var(--color-glass)] border border-[var(--color-border)] rounded-lg p-3 text-[var(--color-text-primary)] focus:border-indigo-500 outline-none placeholder:text-[var(--color-text-secondary)]"
                                         value={newCategoryTemp}
                                         onChange={e => setNewCategoryTemp(e.target.value)}
                                         autoFocus
@@ -883,12 +880,12 @@ function TransactionModal({ onClose, onSave, categories = [], onAddCategory }: a
                             ) : (
                                 <div className="flex flex-1 gap-2">
                                     <select
-                                        className="flex-1 bg-black/20 border border-white/10 rounded-lg p-3 text-white focus:border-indigo-500 outline-none appearance-none cursor-pointer"
+                                        className="flex-1 bg-[var(--color-glass)] border border-[var(--color-border)] rounded-lg p-3 text-[var(--color-text-primary)] focus:border-indigo-500 outline-none appearance-none cursor-pointer"
                                         value={formData.category}
                                         onChange={e => setFormData({ ...formData, category: e.target.value })}
                                     >
                                         {categories.map((c: string) => (
-                                            <option key={c} value={c} className="bg-[#1e232d]">{c}</option>
+                                            <option key={c} value={c} className="bg-[var(--color-card)]">{c}</option>
                                         ))}
                                     </select>
                                     <button
@@ -903,7 +900,7 @@ function TransactionModal({ onClose, onSave, categories = [], onAddCategory }: a
                             )}
                         </div>
                         <div className="flex gap-3 mt-4">
-                            <button type="button" onClick={onClose} className="flex-1 p-3 rounded-lg text-slate-400 hover:bg-white/5 transition-colors">Cancelar</button>
+                            <button type="button" onClick={onClose} className="flex-1 p-3 rounded-lg text-[var(--color-text-secondary)] hover:bg-[var(--color-glass)] transition-colors">Cancelar</button>
                             <button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white p-3 rounded-lg font-semibold shadow-lg shadow-indigo-500/20">Salvar</button>
                         </div>
                     </form>
@@ -957,27 +954,27 @@ function RecurringModal({ onClose, items, onSave, onDelete }: any) {
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-sm" onClick={onClose}>
             <div className="flex items-start justify-center p-4 pt-20 text-center min-h-full">
                 <div
-                    className="relative w-full max-w-2xl transform overflow-hidden rounded-2xl bg-[#1e232d] border border-white/10 p-6 text-left align-middle shadow-xl transition-all"
+                    className="relative w-full max-w-2xl transform overflow-hidden rounded-2xl bg-[var(--color-card)] border border-[var(--color-border)] p-6 text-left align-middle shadow-xl transition-all"
                     onClick={e => e.stopPropagation()}
                 >
                     <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-xl font-bold text-white">Gerenciar Recorrências</h3>
-                        <button onClick={onClose} className="text-slate-400 hover:text-white">✕</button>
+                        <h3 className="text-xl font-bold text-[var(--color-text-primary)]">Gerenciar Recorrências</h3>
+                        <button onClick={onClose} className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]">✕</button>
                     </div>
 
                     <div className="flex-1 overflow-auto pr-2">
                         {/* Add New Section */}
-                        <div className="bg-white/5 rounded-xl p-4 mb-6 border border-white/5">
-                            <h4 className="text-sm font-semibold text-slate-300 mb-3">Adicionar Nova Recorrência (Bulk)</h4>
+                        <div className="bg-[var(--color-glass)] rounded-xl p-4 mb-6 border border-[var(--color-border)]">
+                            <h4 className="text-sm font-semibold text-[var(--color-text-primary)] mb-3">Adicionar Nova Recorrência (Bulk)</h4>
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
-                                <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Nome (ex: Netflix)" className="bg-black/20 border border-white/10 rounded-lg p-2 text-sm text-white md:col-span-2" />
-                                <input value={amount} onChange={handleAmountChange} placeholder="Valor" type="text" className="bg-black/20 border border-white/10 rounded-lg p-2 text-sm text-white" />
-                                <input value={day} onChange={e => setDay(e.target.value)} placeholder="Dia (1-31)" type="number" className="bg-black/20 border border-white/10 rounded-lg p-2 text-sm text-white" />
+                                <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Nome (ex: Netflix)" className="bg-[var(--color-glass)] border border-[var(--color-border)] rounded-lg p-2 text-sm text-[var(--color-text-primary)] md:col-span-2 placeholder:text-[var(--color-text-secondary)]" />
+                                <input value={amount} onChange={handleAmountChange} placeholder="Valor" type="text" className="bg-[var(--color-glass)] border border-[var(--color-border)] rounded-lg p-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)]" />
+                                <input value={day} onChange={e => setDay(e.target.value)} placeholder="Dia (1-31)" type="number" className="bg-[var(--color-glass)] border border-[var(--color-border)] rounded-lg p-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)]" />
                             </div>
                             <div className="flex gap-3">
-                                <select value={type} onChange={e => setType(e.target.value)} className="bg-black/20 border border-white/10 rounded-lg p-2 text-sm text-white flex-1">
-                                    <option value="expense">Saída</option>
-                                    <option value="income">Entrada</option>
+                                <select value={type} onChange={e => setType(e.target.value)} className="bg-[var(--color-glass)] border border-[var(--color-border)] rounded-lg p-2 text-sm text-[var(--color-text-primary)] flex-1">
+                                    <option value="expense" className="bg-[var(--color-card)]">Saída</option>
+                                    <option value="income" className="bg-[var(--color-card)]">Entrada</option>
                                 </select>
                                 <button onClick={handleAddItem} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-semibold">
                                     + Adicionar à Lista
@@ -992,7 +989,7 @@ function RecurringModal({ onClose, items, onSave, onDelete }: any) {
                                 <div className="space-y-2">
                                     {newItems.map((item, idx) => (
                                         <div key={idx} className="flex justify-between items-center p-2 rounded bg-emerald-500/10 border border-emerald-500/20">
-                                            <span className="text-white text-sm">{item.description} - {item.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} (Dia {item.dayOfMonth})</span>
+                                            <span className="text-[var(--color-text-primary)] text-sm">{item.description} - {item.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} (Dia {item.dayOfMonth})</span>
                                             <button onClick={() => setNewItems(prev => prev.filter((_, i) => i !== idx))} className="text-rose-400 hover:text-rose-300">
                                                 <Trash2 size={16} />
                                             </button>
@@ -1007,16 +1004,16 @@ function RecurringModal({ onClose, items, onSave, onDelete }: any) {
 
                         {/* Existing Items */}
                         <div>
-                            <h4 className="text-sm font-semibold text-slate-400 mb-3">Recorrências Ativas:</h4>
+                            <h4 className="text-sm font-semibold text-[var(--color-text-secondary)] mb-3">Recorrências Ativas:</h4>
                             <div className="space-y-2">
                                 {items.map((item: any) => (
-                                    <div key={item.id} className="flex justify-between items-center p-3 rounded-lg bg-black/20 border border-white/5">
+                                    <div key={item.id} className="flex justify-between items-center p-3 rounded-lg bg-[var(--color-glass)] border border-[var(--color-border)]">
                                         <div className="flex flex-col">
-                                            <span className="font-medium text-white">{item.description}</span>
-                                            <span className="text-xs text-slate-400">{item.type === 'income' ? 'Entrada' : 'Saída'} • Dia {item.dayOfMonth}</span>
+                                            <span className="font-medium text-[var(--color-text-primary)]">{item.description}</span>
+                                            <span className="text-xs text-[var(--color-text-secondary)]">{item.type === 'income' ? 'Entrada' : 'Saída'} • Dia {item.dayOfMonth}</span>
                                         </div>
                                         <div className="flex items-center gap-4">
-                                            <span className="text-white">
+                                            <span className="text-[var(--color-text-primary)]">
                                                 {item.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                             </span>
                                             <button onClick={() => onDelete(item.id)} className="text-rose-400 hover:text-rose-300 opacity-50 hover:opacity-100">

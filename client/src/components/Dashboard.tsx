@@ -90,15 +90,15 @@ export default function Dashboard() {
                 loading={loading}
             />
 
-            <div className="col-span-1 lg:col-span-2 bg-[#1e232d]/70 border border-white/5 rounded-2xl p-6 backdrop-blur-xl hover:border-white/10 transition-colors">
-                <h3 className="text-lg font-semibold mb-6 text-white">Atividades Recentes</h3>
+            <div className="col-span-1 lg:col-span-2 bg-[var(--color-card)] border border-[var(--color-border)] rounded-2xl p-6 backdrop-blur-xl hover:border-[var(--color-text-secondary)]/10 transition-colors">
+                <h3 className="text-lg font-semibold mb-6 text-[var(--color-text-primary)]">Atividades Recentes</h3>
                 <div className="flex flex-col gap-4 text-sm">
                     {loading ? (
                         <>
                             {[1, 2, 3].map((i) => (
-                                <div key={i} className="flex justify-between items-center pb-3 border-b border-white/5 last:border-0 last:pb-0 p-2 -mx-2">
-                                    <div className="h-4 w-2/3 bg-white/5 rounded animate-pulse"></div>
-                                    <div className="h-3 w-20 bg-white/5 rounded animate-pulse"></div>
+                                <div key={i} className="flex justify-between items-center pb-3 border-b border-[var(--color-border)] last:border-0 last:pb-0 p-2 -mx-2">
+                                    <div className="h-4 w-2/3 bg-[var(--color-glass)] rounded animate-pulse"></div>
+                                    <div className="h-3 w-20 bg-[var(--color-glass)] rounded animate-pulse"></div>
                                 </div>
                             ))}
                         </>
@@ -112,13 +112,13 @@ export default function Dashboard() {
                 </div>
             </div>
 
-            <div className="col-span-1 bg-[#1e232d]/70 border border-white/5 rounded-2xl p-6 backdrop-blur-xl hover:border-white/10 transition-colors">
-                <h3 className="text-lg font-semibold mb-6 text-white">Próximos Eventos</h3>
+            <div className="col-span-1 bg-[var(--color-card)] border border-[var(--color-border)] rounded-2xl p-6 backdrop-blur-xl hover:border-[var(--color-text-secondary)]/10 transition-colors">
+                <h3 className="text-lg font-semibold mb-6 text-[var(--color-text-primary)]">Próximos Eventos</h3>
                 <div className="flex flex-col gap-4 text-sm">
                     {loading ? (
                         <>
                             {[1, 2].map((i) => (
-                                <div key={i} className="flex items-center gap-4 p-3 rounded-xl bg-white/5 border border-white/5">
+                                <div key={i} className="flex items-center gap-4 p-3 rounded-xl bg-[var(--color-glass)] border border-[var(--color-border)]">
                                     <div className="w-1 h-8 bg-white/10 rounded-full animate-pulse"></div>
                                     <div className="flex-1">
                                         <div className="h-4 w-32 bg-white/10 rounded mb-2 animate-pulse"></div>
@@ -142,22 +142,22 @@ export default function Dashboard() {
 function StatCard({ icon: Icon, title, value, change, colorClass, iconColor, loading }: any) {
     if (loading) {
         return (
-            <div className="bg-[#1e232d]/40 border border-white/5 rounded-2xl p-6 h-full min-h-[140px] animate-pulse flex flex-col justify-between relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent skew-x-12 translate-x-[-100%] animate-shimmer"></div>
+            <div className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-2xl p-6 h-full min-h-[140px] animate-pulse flex flex-col justify-between relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[var(--color-glass)] to-transparent skew-x-12 translate-x-[-100%] animate-shimmer"></div>
                 <div className="flex justify-between items-start">
-                    <div className="w-12 h-12 bg-white/5 rounded-xl"></div>
-                    <div className="h-6 w-16 bg-white/5 rounded"></div>
+                    <div className="w-12 h-12 bg-[var(--color-glass)] rounded-xl"></div>
+                    <div className="h-6 w-16 bg-[var(--color-glass)] rounded"></div>
                 </div>
                 <div className="mt-4">
-                    <div className="h-4 w-24 bg-white/5 rounded mb-2"></div>
-                    <div className="h-8 w-3/4 bg-white/5 rounded"></div>
+                    <div className="h-4 w-24 bg-[var(--color-glass)] rounded mb-2"></div>
+                    <div className="h-8 w-3/4 bg-[var(--color-glass)] rounded"></div>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="bg-[#1e232d]/70 border border-white/5 rounded-2xl p-6 backdrop-blur-xl hover:-translate-y-1 transition-all duration-300 shadow-lg hover:shadow-xl hover:border-white/10 flex flex-col gap-3 group">
+        <div className="bg-[var(--color-card)] border border-[var(--color-border)] rounded-2xl p-6 backdrop-blur-xl hover:-translate-y-1 transition-all duration-300 shadow-lg hover:shadow-xl hover:border-[var(--color-text-secondary)]/10 flex flex-col gap-3 group">
             <div className="flex justify-between items-start">
                 <div className={`p-3 rounded-xl transition-colors duration-300 ${colorClass.split(' ')[1] || ''} group-hover:bg-opacity-20`}>
                     <Icon size={24} color={iconColor} />
@@ -167,8 +167,8 @@ function StatCard({ icon: Icon, title, value, change, colorClass, iconColor, loa
                 </span>
             </div>
             <div className="mt-2">
-                <span className="text-slate-400 text-sm font-medium tracking-wide">{title}</span>
-                <h2 className="text-2xl font-bold text-white mt-1 tracking-tight">{value}</h2>
+                <span className="text-[var(--color-text-secondary)] text-sm font-medium tracking-wide">{title}</span>
+                <h2 className="text-2xl font-bold text-[var(--color-text-primary)] mt-1 tracking-tight">{value}</h2>
             </div>
         </div>
     );
@@ -176,20 +176,20 @@ function StatCard({ icon: Icon, title, value, change, colorClass, iconColor, loa
 
 function ActivityItem({ text, time }: any) {
     return (
-        <div className="flex justify-between items-center pb-3 border-b border-white/5 last:border-0 last:pb-0 hover:bg-white/5 p-2 rounded-lg transition-colors -mx-2">
-            <span className="text-slate-200 font-medium">{text}</span>
-            <span className="text-slate-500 text-xs">{time}</span>
+        <div className="flex justify-between items-center pb-3 border-b border-[var(--color-border)] last:border-0 last:pb-0 hover:bg-[var(--color-glass)] p-2 rounded-lg transition-colors -mx-2">
+            <span className="text-[var(--color-text-primary)] font-medium">{text}</span>
+            <span className="text-[var(--color-text-secondary)] text-xs">{time}</span>
         </div>
     )
 }
 
 function EventItem({ title, time }: any) {
     return (
-        <div className="flex items-center gap-4 p-3 rounded-xl bg-white/5 border border-white/5 hover:border-indigo-500/30 transition-all group cursor-pointer">
+        <div className="flex items-center gap-4 p-3 rounded-xl bg-[var(--color-glass)] border border-[var(--color-border)] hover:border-indigo-500/30 transition-all group cursor-pointer">
             <div className="w-1 h-8 bg-indigo-500 rounded-full group-hover:h-10 transition-all duration-300"></div>
             <div>
-                <h4 className="font-semibold text-white group-hover:text-indigo-300 transition-colors">{title}</h4>
-                <span className="text-slate-400 text-xs">{time}</span>
+                <h4 className="font-semibold text-[var(--color-text-primary)] group-hover:text-indigo-300 transition-colors">{title}</h4>
+                <span className="text-[var(--color-text-secondary)] text-xs">{time}</span>
             </div>
         </div>
     )
