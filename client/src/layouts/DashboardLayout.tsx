@@ -13,6 +13,7 @@ import Placeholder from '../components/Placeholder';
 
 import Profile from '../components/Profile';
 import Settings from '../components/Settings';
+import Todo from '../components/Todo';
 
 function DashboardLayout() {
     const [activeTab, setActiveTab] = useState('dashboard');
@@ -66,6 +67,7 @@ function DashboardLayout() {
             case 'settings': return <Settings />;
             case 'events': return <Events />;
             case 'notes': return <Notes />;
+            case 'todo': return <Todo />;
             default: return <Placeholder title={activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} />;
         }
     };
