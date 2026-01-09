@@ -1,39 +1,60 @@
 import { useState, useEffect } from 'react';
 import { Wallet, Timer, CheckSquare, TrendingUp } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { supabase } from '../lib/supabase';
 import { usePomodoro } from '../context/PomodoroContext';
 
 export default function Dashboard() {
     const [balance, setBalance] = useState<number | null>(null);
+    const [events, setEvents] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const { completedCycles } = usePomodoro();
 
     useEffect(() => {
-        const fetchBalance = async () => {
+        const fetchData = async () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) {
-                setLoading(false); // Ensure loading is set to false even if no user
+                setLoading(false);
                 return;
             }
 
-            const { data, error } = await supabase
+            // Fetch Balance
+            const { data: transactions, error: txError } = await supabase
                 .from('transactions')
                 .select('amount, type')
                 .eq('user_id', user.id);
 
-            if (error) {
-                console.error('Error fetching balance:', error);
-            } else {
-                const total = data.reduce((acc, curr) => {
+            if (txError) {
+                console.error('Error fetching balance:', txError);
+            } else if (transactions) {
+                const total = transactions.reduce((acc, curr) => {
                     if (curr.type === 'income') return acc + curr.amount;
                     return acc - curr.amount;
                 }, 0);
                 setBalance(total);
             }
+
+            // Fetch Upcoming Events
+            const now = new Date().toISOString();
+            const { data: eventsData, error: eventError } = await supabase
+                .from('events')
+                .select('id, title, start_time')
+                .eq('user_id', user.id)
+                .gte('start_time', now)
+                .order('start_time', { ascending: true })
+                .limit(3);
+
+            if (eventError) {
+                console.error('Error fetching events:', eventError);
+            } else if (eventsData) {
+                setEvents(eventsData);
+            }
+
             setLoading(false);
         };
 
-        fetchBalance();
+        fetchData();
     }, []);
 
     const formatCurrency = (val: number | null) => {
@@ -127,11 +148,16 @@ export default function Dashboard() {
                                 </div>
                             ))}
                         </>
+                    ) : events.length > 0 ? (
+                        events.map((event: any) => (
+                            <EventItem
+                                key={event.id}
+                                title={event.title}
+                                time={format(parseISO(event.start_time), "d MMM, HH:mm", { locale: ptBR })}
+                            />
+                        ))
                     ) : (
-                        <>
-                            <EventItem title="Reunião de Equipe" time="14:00" />
-                            <EventItem title="Academia" time="18:30" />
-                        </>
+                        <p className="text-[var(--color-text-secondary)]">Nenhum evento próximo.</p>
                     )}
                 </div>
             </div>

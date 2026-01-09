@@ -7,6 +7,8 @@ import Dashboard from '../components/Dashboard';
 import Finance from '../components/Finance';
 import Diet from '../components/Diet';
 import Pomodoro from '../components/Pomodoro';
+import Events from '../components/Events';
+import Notes from '../components/Notes';
 import Placeholder from '../components/Placeholder';
 
 import Profile from '../components/Profile';
@@ -62,6 +64,8 @@ function DashboardLayout() {
             case 'pomodoro': return <Pomodoro />;
             case 'profile': return <Profile onProfileUpdate={getUser} />;
             case 'settings': return <Settings />;
+            case 'events': return <Events />;
+            case 'notes': return <Notes />;
             default: return <Placeholder title={activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} />;
         }
     };
